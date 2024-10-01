@@ -1,1 +1,6 @@
 fastapi[all]
+requests
+openai
+uvicorn
+cachetools
+datetime
