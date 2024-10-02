@@ -127,7 +127,7 @@ def obtener_restaurantes_por_ciudad(
 
         # Construir los filtros constantes (en este caso ciudad, que es la única variable obligatoria y, por tanto, siempre va a estar)
         formula_parts = [
-            f"OR({{city}}='{city}', {{city_string}}='{city}')"
+            f"FIND('{city.lower()}', LOWER({address_TESTING}))"
         ]
 
         if dia_semana:
