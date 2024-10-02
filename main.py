@@ -9,9 +9,9 @@ app = FastAPI()
 
 @app.get("/") #Define el mensaje por defecto de nuestra propia API 
 async def root():
-    return {"message": "Bienvenido a la API de búsqueda de restaurantes"}
+    return {"message": "Bienvenido a la API de pruebas de búsqueda de restaurantes"}
 
-@app.get("/api/getRestaurants") #Dentro de nuestra propia API nosotros podemos llamar a diferentes funciones. Aquí llama a get_restaurantes
+@app.get("/api/getRestaurantsPrueba") #Dentro de nuestra propia API nosotros podemos llamar a diferentes funciones. Aquí llama a get_restaurantes
 async def get_restaurantes(
     city: str, 
     date: Optional[str] = Query(None, description="La fecha en la que se planea visitar el restaurante"), 
