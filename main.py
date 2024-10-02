@@ -1,7 +1,7 @@
 #IMPORTS
 from fastapi import FastAPI, Query, HTTPException, Request
 from typing import Optional
-from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine #Llama a las funciones que hemos definido en el otro archivo de código
+from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine, obtener_coordenadas # Incluye la función obtener_coordenadas
 import logging
 from datetime import datetime
 
