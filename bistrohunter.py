@@ -138,10 +138,7 @@ def obtener_restaurantes_por_ciudad(
             formula_parts.append(f"FIND('{cocina}', {{comida_[TESTING]}}) > 0")
 
         if diet:
-            formula_parts.append(
-                f"OR(FIND('{diet}', ARRAYJOIN({{tripadvisor_dietary_restrictions}}, ', ')) > 0, FIND('{diet}', ARRAYJOIN({{dietas_string}}, ', ')) > 0)"
-            )
-
+            formula_parts.append(f"FIND('{diet}', {{comida_[TESTING]}}) > 0")
         if dish:
             formula_parts.append(f"FIND('{dish}', ARRAYJOIN({{comida_[TESTING]}}, ', ')) > 0")
 
