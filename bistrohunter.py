@@ -119,16 +119,14 @@ def obtener_restaurantes_por_ciudad(
     zona: Optional[str] = None
 ) -> List[dict]:
     try:
-        table_name = 'Restaurantes DB' #Tabla donde tiene que mirar
-        url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}" #url de petición a Airtable
+        table_name = 'Restaurantes DB'
+        url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}"
         headers = {
             "Authorization": f"Bearer {AIRTABLE_PAT}",
         }
 
-        # Construir los filtros constantes (en este caso ciudad, que es la única variable obligatoria y, por tanto, siempre va a estar)
-        formula_parts = [
-            f"FIND('{city.lower()}', LOWER({{address_TESTING}}))"
-        ]
+        # Inicializamos la fórmula de búsqueda solo con la ciudad en la columna address_TESTING
+        formula_parts = []
 
         if dia_semana:
             formula_parts.append(f"FIND('{dia_semana}', ARRAYJOIN({{day_opened}}, ', ')) > 0")
@@ -153,22 +151,29 @@ def obtener_restaurantes_por_ciudad(
         distancia_km = 2.0
         location = None
 
+        # Obtener coordenadas de la ciudad usando Google Maps
+        location = obtener_coordenadas(city, city)
+        if not location:
+            raise HTTPException(status_code=404, detail="Ciudad no encontrada.")
+        
+        lat_centro = location['lat']
+        lon_centro = location['lng']
+
+        # Si se especifica una zona, se obtiene las coordenadas de esa zona.
         if zona:
-            location = obtener_coordenadas(zona, city)
-            if not location:
+            location_zona = obtener_coordenadas(zona, city)
+            if not location_zona:
                 raise HTTPException(status_code=404, detail="Zona no encontrada.")
-            lat_centro = location['lat']
-            lon_centro = location['lng']
+            lat_centro = location_zona['lat']
+            lon_centro = location_zona['lng']
 
-    
-        while len(restaurantes_encontrados) < 3: #Va a ir aumentando de 2 en 2 el radio en el que busca restaurantes respecto a la zona especificada por el cliente hasta que encuentre 3.
+        # Búsqueda iterativa en un radio creciente hasta que se encuentren al menos 3 restaurantes
+        while len(restaurantes_encontrados) < 3:
+            formula_parts_zona = formula_parts.copy()
 
-            formula_parts_zona = formula_parts
-
-            if zona and location:
-                limites = obtener_limites_geograficos(lat_centro, lon_centro, distancia_km)
-                formula_parts_zona.append(f"AND({{location/lat}} >= {limites['lat_min']}, {{location/lat}} <= {limites['lat_max']})")
-                formula_parts_zona.append(f"AND({{location/lng}} >= {limites['lon_min']}, {{location/lng}} <= {limites['lon_max']})")
+            limites = obtener_limites_geograficos(lat_centro, lon_centro, distancia_km)
+            formula_parts_zona.append(f"AND({{location/lat}} >= {limites['lat_min']}, {{location/lat}} <= {limites['lat_max']})")
+            formula_parts_zona.append(f"AND({{location/lng}} >= {limites['lon_min']}, {{location/lng}} <= {limites['lon_max']})")
 
             filter_formula = "AND(" + ", ".join(formula_parts_zona) + ")"
             logging.info(f"Fórmula de filtro construida: {filter_formula} para distancia {distancia_km} km")
@@ -182,21 +187,19 @@ def obtener_restaurantes_por_ciudad(
 
             response_data = airtable_request(url, headers, params)
             if response_data and 'records' in response_data:
-                
                 restaurantes_filtrados = [
                     restaurante for restaurante in response_data['records']
                     if restaurante not in restaurantes_encontrados  # Evitar duplicados
                 ]
                 restaurantes_encontrados.extend(restaurantes_filtrados)
 
-            
             distancia_km += 2.0
 
-            
-            if distancia_km > 8: #Si llega a los 8 km. y aún no ha encontrado 3 restaurantes que valgan, rompe.
+            if distancia_km > 8:
                 break
 
-        if zona and location:
+        # Ordenar restaurantes por distancia si se especificó una zona o ciudad
+        if location:
             restaurantes_encontrados.sort(key=lambda r: haversine(lon_centro, lat_centro, float(r['fields'].get('location/lng', 0)), float(r['fields'].get('location/lat', 0))))
 
         return restaurantes_encontrados[:3]
