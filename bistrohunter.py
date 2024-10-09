@@ -205,14 +205,10 @@ def obtener_restaurantes_por_ciudad(
     
 
 @app.post("/procesar-variables")
-
-#Esta es la función que convierte los datos que ha extraído el agente de IA en las variables que usa la función obtener_restaurantes y luego llama a esta misma función y extrae y ofrece los resultados
 async def procesar_variables(request: Request):
     try:
-        
         data = await request.json()
         logging.info(f"Datos recibidos: {data}")
-        
         
         city = data.get('city')
         date = data.get('date')
@@ -233,6 +229,7 @@ async def procesar_variables(request: Request):
             except ValueError:
                 raise HTTPException(status_code=400, detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD).")
 
+        # Llama a la función obtener_restaurantes_por_ciudad
         restaurantes = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
@@ -244,7 +241,18 @@ async def procesar_variables(request: Request):
         )
         
         if not restaurantes:
-            return {"mensaje": "No se encontraron restaurantes con los filtros aplicados."}
+            return {
+                "variables": {
+                    "city": city,
+                    "zone": zona,
+                    "cuisine_type": cocina,
+                    "price_range": price_range,
+                    "date": date,
+                    "alimentary_restrictions": diet,
+                    "specific_dishes": dish
+                },
+                "mensaje": "No se encontraron restaurantes con los filtros aplicados."
+            }
         
         resultados = [
             {
@@ -262,7 +270,18 @@ async def procesar_variables(request: Request):
             for restaurante in restaurantes
         ]
         
-        return {"mensaje": "Datos procesados y respuesta generada correctamente", "resultados": resultados}
+        return {
+            "variables": {
+                "city": city,
+                "zone": zona,
+                "cuisine_type": cocina,
+                "price_range": price_range,
+                "date": date,
+                "alimentary_restrictions": diet,
+                "specific_dishes": dish
+            },
+            "resultados": resultados
+        }
     
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
