@@ -203,7 +203,6 @@ def obtener_restaurantes_por_ciudad(
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener restaurantes de la ciudad")
     
-
 @app.post("/procesar-variables")
 async def procesar_variables(request: Request):
     try:
@@ -229,8 +228,8 @@ async def procesar_variables(request: Request):
             except ValueError:
                 raise HTTPException(status_code=400, detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD).")
 
-        # Llama a la función obtener_restaurantes_por_ciudad
-        restaurantes = obtener_restaurantes_por_ciudad(
+        # Llama a la función obtener_restaurantes_por_ciudad y construye la filter_formula
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
             price_range=price_range,
@@ -239,9 +238,18 @@ async def procesar_variables(request: Request):
             dish=dish,
             zona=zona
         )
+
+        # Capturar la URL completa y los parámetros de la solicitud
+        full_url = str(request.url)
+        request_method = request.method
+
+        # Capturar la información del request
+        http_request_info = f'{request_method} {full_url} HTTP/1.1 200 OK'
         
+        # Si no se encontraron restaurantes, devolver el mensaje y el request_info
         if not restaurantes:
             return {
+                "request_info": http_request_info,
                 "variables": {
                     "city": city,
                     "zone": zona,
@@ -249,12 +257,13 @@ async def procesar_variables(request: Request):
                     "price_range": price_range,
                     "date": date,
                     "alimentary_restrictions": diet,
-                    "specific_dishes": dish
+                    "specific_dishes": dish,
+                    "filter_formula": filter_formula  # Devolver siempre filter_formula
                 },
-                "filter_formula": filter_formula,
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados."
             }
         
+        # Procesar los restaurantes
         resultados = [
             {
                 "titulo": restaurante['fields'].get('title', 'Sin título'),
@@ -271,7 +280,9 @@ async def procesar_variables(request: Request):
             for restaurante in restaurantes
         ]
         
+        # Devolver los resultados junto con el log de la petición HTTP
         return {
+            "request_info": http_request_info,  # Agregar la información del request
             "variables": {
                 "city": city,
                 "zone": zona,
@@ -279,10 +290,10 @@ async def procesar_variables(request: Request):
                 "price_range": price_range,
                 "date": date,
                 "alimentary_restrictions": diet,
-                "specific_dishes": dish
+                "specific_dishes": dish,
+                "filter_formula": filter_formula  # Devolver siempre filter_formula
             },
-            "resultados": resultados,
-            "filter_formula": filter_formula
+            "resultados": resultados
         }
     
     except Exception as e:
