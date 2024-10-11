@@ -11,8 +11,11 @@ app = FastAPI()
 async def root():
     return {"message": "Bienvenido a la API de pruebas de búsqueda de restaurantes"}
 
+from fastapi import FastAPI, Query, HTTPException, Request  # Asegúrate de importar Request
+
 @app.get("/api/getRestaurantsPrueba")
 async def get_restaurantes(
+    request: Request,  # <-- Añadir el parámetro request aquí
     city: str, 
     date: Optional[str] = Query(None, description="La fecha en la que se planea visitar el restaurante"), 
     price_range: Optional[str] = Query(None, description="El rango de precios deseado para el restaurante"),
@@ -46,7 +49,7 @@ async def get_restaurantes(
             }
 
         # Capturar la URL completa y los parámetros de la solicitud
-        full_url = str(request.url)
+        full_url = str(request.url)  # <-- Se utiliza request aquí
         request_method = request.method
         api_call = f'{request_method} {full_url}'
 
