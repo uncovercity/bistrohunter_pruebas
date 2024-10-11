@@ -109,6 +109,7 @@ def obtener_limites_geograficos(lat: float, lon: float, distancia_km: float = 2.
 @cache_airtable_request
 
 #Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
+# Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable
 def obtener_restaurantes_por_ciudad(
     city: str, 
     dia_semana: Optional[str] = None, 
@@ -117,7 +118,7 @@ def obtener_restaurantes_por_ciudad(
     diet: Optional[str] = None,
     dish: Optional[str] = None,
     zona: Optional[str] = None
-) -> List[dict]:
+) -> (List[dict], str):  # Añadimos str para devolver también la fórmula
     try:
         table_name = 'Restaurantes DB'
         url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}"
@@ -125,7 +126,7 @@ def obtener_restaurantes_por_ciudad(
             "Authorization": f"Bearer {AIRTABLE_PAT}",
         }
 
-        # Inicializamos la fórmula de búsqueda solo con la ciudad en la columna address_TESTING
+        # Inicializamos la fórmula de búsqueda
         formula_parts = []
 
         if dia_semana:
@@ -139,12 +140,13 @@ def obtener_restaurantes_por_ciudad(
 
         if diet:
             formula_parts.append(f"FIND('{diet}', {{comida_[TESTING]}}) > 0")
+        
         if dish:
             formula_parts.append(f"FIND('{dish}', ARRAYJOIN({{comida_[TESTING]}}, ', ')) > 0")
 
+        # Si especifica una zona, obtenemos las coordenadas
         restaurantes_encontrados = []
         distancia_km = 2.0
-        location = None
 
         # Obtener coordenadas de la ciudad usando Google Maps
         location = obtener_coordenadas(city, city)
@@ -154,7 +156,7 @@ def obtener_restaurantes_por_ciudad(
         lat_centro = location['lat']
         lon_centro = location['lng']
 
-        # Si se especifica una zona, se obtiene las coordenadas de esa zona.
+        # Si se especifica una zona, obtenemos coordenadas de la zona
         if zona:
             location_zona = obtener_coordenadas(zona, city)
             if not location_zona:
@@ -197,7 +199,8 @@ def obtener_restaurantes_por_ciudad(
         if location:
             restaurantes_encontrados.sort(key=lambda r: haversine(lon_centro, lat_centro, float(r['fields'].get('location/lng', 0)), float(r['fields'].get('location/lat', 0))))
 
-        return restaurantes_encontrados[:3]
+        # Devolvemos los restaurantes encontrados y la fórmula de filtro usada
+        return restaurantes_encontrados[:3], filter_formula
 
     except Exception as e:
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
