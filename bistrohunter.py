@@ -88,7 +88,9 @@ def cache_airtable_request(func):
 @cache_airtable_request
 
 #Función que realiza la petición a la API de Airtable
-def airtable_request(url, headers, params):
+def airtable_request(url, headers, params, view_id: Optional[str] = None):
+    if view_id:
+        params["view"] = view_id
     response = requests.get(url, headers=headers, params=params)
     return response.json() if response.status_code == 200 else None
 
@@ -182,7 +184,7 @@ def obtener_restaurantes_por_ciudad(
                 "maxRecords": 3
             }
 
-            response_data = airtable_request(url, headers, params)
+            response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
             if response_data and 'records' in response_data:
                 restaurantes_filtrados = [
                     restaurante for restaurante in response_data['records']
