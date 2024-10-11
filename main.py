@@ -7,7 +7,7 @@ from datetime import datetime
 
 app = FastAPI()
 
-@app.get("/") #Define el mensaje por defecto de nuestra propia API 
+@app.get("/")  # Define el mensaje por defecto de nuestra propia API
 async def root():
     return {"message": "Bienvenido a la API de pruebas de búsqueda de restaurantes"}
 
@@ -28,11 +28,14 @@ async def get_restaurantes(
             fecha = datetime.strptime(date, "%Y-%m-%d")
             dia_semana = obtener_dia_semana(fecha)
 
-        # Llamar a la función para obtener los restaurantes
-        restaurantes = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona)
+        # Llamar a la función para obtener los restaurantes y la fórmula de filtro
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona)
         
         if not restaurantes:
-            return {"mensaje": "No se encontraron restaurantes con los filtros aplicados."}
+            return {
+                "mensaje": "No se encontraron restaurantes con los filtros aplicados.",
+                "request_info": http_request_info
+            }
 
         # Extraer las coordenadas centrales (ya sea de la ciudad o de la zona)
         if zona:
@@ -60,7 +63,15 @@ async def get_restaurantes(
             for restaurante in restaurantes
         ]
 
-        return {"resultados": resultados}
+        # Capturar la URL completa y los parámetros de la solicitud
+        full_url = str(request.url)
+        request_method = request.method
+        http_request_info = f'{request_method} {full_url} HTTP/1.1 200 OK'
+
+        return {
+            "request_info": http_request_info,
+            "resultados": resultados
+        }
         
     except Exception as e:
         logging.error(f"Error al buscar restaurantes: {e}")
@@ -92,7 +103,8 @@ async def procesar_variables(request: Request):
             except ValueError:
                 raise HTTPException(status_code=400, detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD).")
 
-        restaurantes = obtener_restaurantes_por_ciudad(
+        # Llamar a la función para obtener los restaurantes y la fórmula de filtro
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
             price_range=price_range,
@@ -103,7 +115,10 @@ async def procesar_variables(request: Request):
         )
         
         if not restaurantes:
-            return {"mensaje": "No se encontraron restaurantes con los filtros aplicados."}
+            return {
+                "mensaje": "No se encontraron restaurantes con los filtros aplicados.",
+                "request_info": http_request_info
+            }
 
         # Extraer las coordenadas centrales (ya sea de la ciudad o de la zona)
         if zona:
@@ -131,9 +146,16 @@ async def procesar_variables(request: Request):
             for restaurante in restaurantes
         ]
 
-        return {"mensaje": "Datos procesados y respuesta generada correctamente", "resultados": resultados}
+        # Capturar la URL completa y los parámetros de la solicitud
+        full_url = str(request.url)
+        request_method = request.method
+        http_request_info = f'{request_method} {full_url} HTTP/1.1 200 OK'
+
+        return {
+            "request_info": http_request_info,
+            "resultados": resultados
+        }
     
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
         return {"error": "Ocurrió un error al procesar las variables"}
-
