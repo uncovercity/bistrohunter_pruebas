@@ -12,10 +12,17 @@ async def root():
     return {"message": "Bienvenido a la API de pruebas de búsqueda de restaurantes"}
 
 from fastapi import FastAPI, Query, HTTPException, Request  # Asegúrate de importar Request
-
 from fastapi import FastAPI, Query, HTTPException, Request
 from typing import Optional
 from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine, obtener_coordenadas
+import logging
+from datetime import datetime
+
+app = FastAPI()
+
+from fastapi import FastAPI, Query, HTTPException, Request
+from typing import Optional
+from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana
 import logging
 from datetime import datetime
 
@@ -38,15 +45,15 @@ async def get_restaurantes(
             fecha = datetime.strptime(date, "%Y-%m-%d")
             dia_semana = obtener_dia_semana(fecha)
 
-        # Llamar a la función para obtener los restaurantes
-        restaurantes = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona)
+        # Llamar a la función para obtener los restaurantes y la fórmula de filtro
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona)
         
         # Capturar la URL completa y los parámetros de la solicitud
         full_url = str(request.url)
         request_method = request.method
         api_call = f'{request_method} {full_url}'
 
-        # Devolver los restaurantes, las variables y la llamada a la API
+        # Verifica si se encontraron restaurantes y accede correctamente a sus campos
         if restaurantes:
             return {
                 "restaurants": [
@@ -66,7 +73,7 @@ async def get_restaurantes(
                     "dish": dish,
                     "zone": zona
                 },
-                "api_call": api_call  # Devolver la llamada a la API
+                "api_call": api_call
             }
         else:
             return {
