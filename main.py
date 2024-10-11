@@ -13,9 +13,17 @@ async def root():
 
 from fastapi import FastAPI, Query, HTTPException, Request  # Asegúrate de importar Request
 
+from fastapi import FastAPI, Query, HTTPException, Request
+from typing import Optional
+from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine, obtener_coordenadas
+import logging
+from datetime import datetime
+
+app = FastAPI()
+
 @app.get("/api/getRestaurantsPrueba")
 async def get_restaurantes(
-    request: Request,  # <-- Añadir el parámetro request aquí
+    request: Request,  
     city: str, 
     date: Optional[str] = Query(None, description="La fecha en la que se planea visitar el restaurante"), 
     price_range: Optional[str] = Query(None, description="El rango de precios deseado para el restaurante"),
@@ -23,7 +31,6 @@ async def get_restaurantes(
     diet: Optional[str] = Query(None, description="Dieta que necesita el cliente"),
     dish: Optional[str] = Query(None, description="Plato por el que puede preguntar un cliente específicamente"),
     zona: Optional[str] = Query(None, description="Zona específica dentro de la ciudad"),
-    conversation_id: str = Query(None)
 ):
     try:
         dia_semana = None
@@ -34,7 +41,34 @@ async def get_restaurantes(
         # Llamar a la función para obtener los restaurantes
         restaurantes = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona)
         
-        if not restaurantes:
+        # Capturar la URL completa y los parámetros de la solicitud
+        full_url = str(request.url)
+        request_method = request.method
+        api_call = f'{request_method} {full_url}'
+
+        # Devolver los restaurantes, las variables y la llamada a la API
+        if restaurantes:
+            return {
+                "restaurants": [
+                    {
+                        "title": r['fields'].get('title', 'Sin título'),
+                        "description": r['fields'].get('bh_message', 'Sin descripción'),
+                        "price_range": r['fields'].get('price_range', 'No especificado'),
+                        "score": r['fields'].get('NBH2', 'N/A'),
+                        "url": r['fields'].get('url', 'No especificado')
+                    } for r in restaurantes
+                ],
+                "variables": {
+                    "city": city,
+                    "price_range": price_range,
+                    "cuisine_type": cocina,
+                    "diet": diet,
+                    "dish": dish,
+                    "zone": zona
+                },
+                "api_call": api_call  # Devolver la llamada a la API
+            }
+        else:
             return {
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados.",
                 "variables": {
@@ -45,28 +79,8 @@ async def get_restaurantes(
                     "dish": dish,
                     "zone": zona
                 },
-                "api_call": f"GET /api/getRestaurantsPrueba?city={city}&price_range={price_range}&cocina={cocina}"
+                "api_call": api_call
             }
-
-        # Capturar la URL completa y los parámetros de la solicitud
-        full_url = str(request.url)  # <-- Se utiliza request aquí
-        request_method = request.method
-        api_call = f'{request_method} {full_url}'
-
-        # Devolver los restaurantes, las variables y la llamada a la API
-        return {
-            "resultados": restaurantes,
-            "variables": {
-                "city": city,
-                "price_range": price_range,
-                "cuisine_type": cocina,
-                "diet": diet,
-                "dish": dish,
-                "zone": zona
-            },
-            "api_call": api_call  # Devolver la llamada a la API
-        }
-        
     except Exception as e:
         logging.error(f"Error al buscar restaurantes: {e}")
         raise HTTPException(status_code=500, detail="Error al buscar restaurantes")
@@ -106,8 +120,35 @@ async def procesar_variables(request: Request):
             dish=dish,
             zona=zona
         )
-        
-        if not restaurantes:
+
+        # Capturar la URL completa y los parámetros de la solicitud
+        full_url = str(request.url)
+        request_method = request.method
+        api_call = f'{request_method} {full_url}'
+
+        # Devolver los restaurantes, las variables y la llamada a la API
+        if restaurantes:
+            return {
+                "restaurants": [
+                    {
+                        "title": r['fields'].get('title', 'Sin título'),
+                        "description": r['fields'].get('bh_message', 'Sin descripción'),
+                        "price_range": r['fields'].get('price_range', 'No especificado'),
+                        "score": r['fields'].get('NBH2', 'N/A'),
+                        "url": r['fields'].get('url', 'No especificado')
+                    } for r in restaurantes
+                ],
+                "variables": {
+                    "city": city,
+                    "price_range": price_range,
+                    "cuisine_type": cocina,
+                    "diet": diet,
+                    "dish": dish,
+                    "zone": zona
+                },
+                "api_call": api_call  # Devolver la llamada a la API
+            }
+        else:
             return {
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados.",
                 "variables": {
@@ -118,28 +159,9 @@ async def procesar_variables(request: Request):
                     "dish": dish,
                     "zone": zona
                 },
-                "api_call": f"POST /procesar-variables con datos: {data}"
+                "api_call": api_call
             }
-
-        # Capturar la URL completa y los parámetros de la solicitud
-        full_url = str(request.url)
-        request_method = request.method
-        api_call = f'{request_method} {full_url}'
-
-        # Devolver los restaurantes, las variables y la llamada a la API
-        return {
-            "resultados": restaurantes,
-            "variables": {
-                "city": city,
-                "price_range": price_range,
-                "cuisine_type": cocina,
-                "diet": diet,
-                "dish": dish,
-                "zone": zona
-            },
-            "api_call": api_call  # Devolver la llamada a la API
-        }
-    
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
         return {"error": "Ocurrió un error al procesar las variables"}
+
