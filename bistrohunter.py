@@ -251,6 +251,7 @@ async def procesar_variables(request: Request):
                     "alimentary_restrictions": diet,
                     "specific_dishes": dish
                 },
+                "filter_formula": filter_formula,
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados."
             }
         
@@ -280,7 +281,8 @@ async def procesar_variables(request: Request):
                 "alimentary_restrictions": diet,
                 "specific_dishes": dish
             },
-            "resultados": resultados
+            "resultados": resultados,
+            "filter_formula": filter_formula
         }
     
     except Exception as e:
