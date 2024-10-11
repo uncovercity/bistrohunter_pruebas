@@ -257,8 +257,7 @@ async def procesar_variables(request: Request):
                     "price_range": price_range,
                     "date": date,
                     "alimentary_restrictions": diet,
-                    "specific_dishes": dish,
-                    "filter_formula": filter_formula  # Devolver siempre filter_formula
+                    "specific_dishes": dish
                 },
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados."
             }
@@ -282,7 +281,7 @@ async def procesar_variables(request: Request):
         
         # Devolver los resultados junto con el log de la petición HTTP
         return {
-            "request_info": http_request_info,  # Agregar la información del request
+            "request_info": http_request_info,
             "variables": {
                 "city": city,
                 "zone": zona,
@@ -290,8 +289,7 @@ async def procesar_variables(request: Request):
                 "price_range": price_range,
                 "date": date,
                 "alimentary_restrictions": diet,
-                "specific_dishes": dish,
-                "filter_formula": filter_formula  # Devolver siempre filter_formula
+                "specific_dishes": dish
             },
             "resultados": resultados
         }
