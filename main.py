@@ -126,11 +126,7 @@ async def procesar_variables(request: Request):
                         "title": r['fields'].get('title', 'Sin título'),
                         "description": r['fields'].get('bh_message', 'Sin descripción'),
                         "price_range": r['fields'].get('price_range', 'No especificado'),
-                        "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A'),
-                        "distancia": (
-                                f"{haversine(float(restaurante['fields'].get('location/lng', 0)), float(restaurante['fields'].get('location/lat', 0)), lat_centro, lon_centro):.2f} km"
-                                if zona and 'location/lng' in restaurante['fields'] and 'location/lat' in restaurante['fields'] else "No calculado"
-                            )
+                        "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A')
                     } for r in restaurantes
                 ],
                 "variables": {
