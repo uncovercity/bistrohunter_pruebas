@@ -8,6 +8,7 @@ import logging
 from functools import wraps
 from cachetools import TTLCache
 from math import radians, cos, sin, asin, sqrt
+from fuzzywuzzy import fuzz, process
 
 #Desplegar fast api (no tocar)
 app = FastAPI()
