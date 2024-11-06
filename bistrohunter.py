@@ -8,7 +8,6 @@ import logging
 from functools import wraps
 from cachetools import TTLCache
 from math import radians, cos, sin, asin, sqrt
-from fuzzywuzzy import fuzz, process
 
 #Desplegar fast api (no tocar)
 app = FastAPI()
@@ -111,17 +110,7 @@ def obtener_limites_geograficos(lat: float, lon: float, distancia_km: float = 2.
 
 @cache_airtable_request
 
-# Función para realizar coincidencias flexibles usando fuzzywuzzy
-def buscar_coincidencia_flexible(valor_cliente: str, valores_columnas: List[str], umbral: int = 80) -> bool:
-    """
-    Busca si hay una coincidencia flexible entre el valor proporcionado por el cliente y los valores en la columna.
-    Retorna True si hay una coincidencia aceptada, False de lo contrario.
-    """
-    if not valores_columnas:
-        return False
-    mejor_coincidencia = process.extractOne(valor_cliente, valores_columnas, scorer=fuzz.token_sort_ratio)
-    return mejor_coincidencia and mejor_coincidencia[1] >= umbral
-
+# Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
 def obtener_restaurantes_por_ciudad(
     city: str, 
     dia_semana: Optional[str] = None, 
@@ -139,20 +128,6 @@ def obtener_restaurantes_por_ciudad(
             "Authorization": f"Bearer {AIRTABLE_PAT}",
         }
 
-        # Realiza la solicitud a Airtable para obtener todos los restaurantes
-        params = {
-            "filterByFormula": "TRUE()",
-            "maxRecords": 1000
-        }
-        response_data = airtable_request(url, headers, params)
-        if not response_data or 'records' not in response_data:
-            return [], "No se encontraron registros."
-
-        # Obtener valores para comparación usando fuzzywuzzy
-        restaurantes = response_data['records']
-        valores_comida = [restaurante.get('fields', {}).get('comida_[TESTING]', '') for restaurante in restaurantes]
-        valores_comida = [valor for sublist in valores_comida for valor in (sublist if isinstance(sublist, list) else [sublist])]
-
         # Inicializamos la fórmula de búsqueda
         formula_parts = []
 
@@ -163,21 +138,18 @@ def obtener_restaurantes_por_ciudad(
             formula_parts.append(f"FIND('{price_range}', ARRAYJOIN({{price_range}}, ', ')) > 0")
 
         if cocina:
-            # Aplicar fuzzy matching en valores_comida y añadir solo si hay coincidencia
-            if buscar_coincidencia_flexible(cocina, valores_comida):
-                formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{comida_[TESTING]}})) > 0")
+            formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{comida_[TESTING]}})) > 0")
 
         if diet:
-            if buscar_coincidencia_flexible(diet, valores_comida):
-                formula_parts.append(f"FIND(LOWER('{diet}'), LOWER({{comida_[TESTING]}})) > 0")
+            formula_parts.append(f"FIND(LOWER('{diet}'), LOWER({{comida_[TESTING]}})) > 0")
         
         if dish:
-            if buscar_coincidencia_flexible(dish, valores_comida):
-                formula_parts.append(f"FIND(LOWER('{dish}'), LOWER(ARRAYJOIN({{comida_[TESTING]}}, ', '))) > 0")
+            formula_parts.append(f"FIND(LOWER('{dish}'), LOWER(ARRAYJOIN({{comida_[TESTING]}}, ', '))) > 0")
 
         # Si especifica una zona, obtenemos las coordenadas
         restaurantes_encontrados = []
 
+        # Obtener coordenadas de la ciudad usando Google Maps
         location = obtener_coordenadas(city, city)
         if not location:
             raise HTTPException(status_code=404, detail="Ciudad no encontrada.")
@@ -185,6 +157,7 @@ def obtener_restaurantes_por_ciudad(
         lat_centro = location['lat']
         lon_centro = location['lng']
 
+        # Si se especifica una zona, obtenemos coordenadas de la zona
         if zona:
             location_zona = obtener_coordenadas(zona, city)
             if not location_zona:
@@ -192,7 +165,8 @@ def obtener_restaurantes_por_ciudad(
             lat_centro = location_zona['lat']
             lon_centro = location_zona['lng']
 
-        distancia_km = 1.0
+        # Realizar una búsqueda inicial exclusivamente dentro de la zona especificada
+        distancia_km = 1.0  # Comenzar con un radio pequeño, 1 km
         while len(restaurantes_encontrados) < 10:
             formula_parts_zona = formula_parts.copy()
 
@@ -214,17 +188,19 @@ def obtener_restaurantes_por_ciudad(
             if response_data and 'records' in response_data:
                 restaurantes_filtrados = [
                     restaurante for restaurante in response_data['records']
-                    if restaurante not in restaurantes_encontrados
+                    if restaurante not in restaurantes_encontrados  # Evitar duplicados
                 ]
                 restaurantes_encontrados.extend(restaurantes_filtrados)
 
             if len(restaurantes_encontrados) >= 10:
+                break  # Si se alcanzan 10 resultados, detener la búsqueda
+
+            distancia_km += 1.0  # Aumentar el radio progresivamente para ampliar la búsqueda
+
+            if distancia_km > 8:  # Limitar el rango máximo de búsqueda a 8 km
                 break
 
-            distancia_km += 1.0
-            if distancia_km > 8:
-                break
-
+        # Ordenar restaurantes por distancia si se especifica
         if sort_by_proximity and location:
             restaurantes_encontrados.sort(key=lambda r: haversine(
                 lon_centro, lat_centro,
@@ -232,11 +208,14 @@ def obtener_restaurantes_por_ciudad(
                 float(r['fields'].get('location/lat', 0))
             ))
 
+        # Devolvemos los restaurantes encontrados y la fórmula de filtro usada
         return restaurantes_encontrados[:10], filter_formula
 
     except Exception as e:
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener restaurantes de la ciudad")
+    
+@app.post("/procesar-variables")
 
 #Esta es la función que convierte los datos que ha extraído el agente de IA en las variables que usa la función obtener_restaurantes y luego llama a esta misma función y extrae y ofrece los resultados
 async def procesar_variables(request: Request):
