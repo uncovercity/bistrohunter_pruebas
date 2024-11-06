@@ -1,34 +1,17 @@
 #IMPORTS
 from fastapi import FastAPI, Query, HTTPException, Request
 from typing import Optional
-from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine, obtener_coordenadas # Incluye la función obtener_coordenadas
+from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine, obtener_coordenadas #Llama a las funciones que hemos definido en el otro archivo de código
 import logging
 from datetime import datetime
 
 app = FastAPI()
 
-@app.get("/")  # Define el mensaje por defecto de nuestra propia API
+@app.get("/") #Define el mensaje por defecto de nuestra propia API 
 async def root():
-    return {"message": "Bienvenido a la API de pruebas de búsqueda de restaurantes"}
+    return {"message": "Bienvenido a la API de búsqueda de restaurantes"}
 
-from fastapi import FastAPI, Query, HTTPException, Request  # Asegúrate de importar Request
-from fastapi import FastAPI, Query, HTTPException, Request
-from typing import Optional
-from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana, haversine, obtener_coordenadas
-import logging
-from datetime import datetime
-
-app = FastAPI()
-
-from fastapi import FastAPI, Query, HTTPException, Request
-from typing import Optional
-from bistrohunter import obtener_restaurantes_por_ciudad, obtener_dia_semana
-import logging
-from datetime import datetime
-
-app = FastAPI()
-
-@app.get("/api/getRestaurantsPrueba")
+@app.get("/api/getRestaurantsPrueba") #Dentro de nuestra propia API nosotros podemos llamar a diferentes funciones. Aquí llama a get_restaurantes
 async def get_restaurantes(
     request: Request,  
     city: str, 
@@ -58,6 +41,7 @@ async def get_restaurantes(
             return {
                 "restaurants": [
                     {
+                        "cid": r['fields'].get('cid'),
                         "title": r['fields'].get('title', 'Sin título'),
                         "description": r['fields'].get('bh_message', 'Sin descripción'),
                         "price_range": r['fields'].get('price_range', 'No especificado'),
@@ -91,8 +75,8 @@ async def get_restaurantes(
     except Exception as e:
         logging.error(f"Error al buscar restaurantes: {e}")
         raise HTTPException(status_code=500, detail="Error al buscar restaurantes")
-
-@app.post("/procesar-variables")
+        
+@app.post("/procesar-variables") #Aquí llama a procesar_variables
 async def procesar_variables(request: Request):
     try:
         data = await request.json()
@@ -138,6 +122,7 @@ async def procesar_variables(request: Request):
             return {
                 "restaurants": [
                     {
+                        "cid": restaurante['fields'].get('cid'),
                         "title": r['fields'].get('title', 'Sin título'),
                         "description": r['fields'].get('bh_message', 'Sin descripción'),
                         "price_range": r['fields'].get('price_range', 'No especificado'),
@@ -171,4 +156,3 @@ async def procesar_variables(request: Request):
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
         return {"error": "Ocurrió un error al procesar las variables"}
-
