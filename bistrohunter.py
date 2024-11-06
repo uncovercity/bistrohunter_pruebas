@@ -111,7 +111,6 @@ def obtener_limites_geograficos(lat: float, lon: float, distancia_km: float = 2.
 @cache_airtable_request
 
 #Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
-# Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable
 def obtener_restaurantes_por_ciudad(
     city: str, 
     dia_semana: Optional[str] = None, 
@@ -138,13 +137,13 @@ def obtener_restaurantes_por_ciudad(
             formula_parts.append(f"FIND('{price_range}', ARRAYJOIN({{price_range}}, ', ')) > 0")
 
         if cocina:
-            formula_parts.append(f"FIND('{cocina}', {{comida_[TESTING]}}) > 0")
+            formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{comida_[TESTING]}})) > 0")
 
         if diet:
-            formula_parts.append(f"FIND('{diet}', {{comida_[TESTING]}}) > 0")
+            formula_parts.append(f"FIND(LOWER('{diet}'), LOWER({{comida_[TESTING]}})) > 0")
         
         if dish:
-            formula_parts.append(f"FIND('{dish}', ARRAYJOIN({{comida_[TESTING]}}, ', ')) > 0")
+            formula_parts.append(f"FIND(LOWER('{dish}'), LOWER(ARRAYJOIN({{comida_[TESTING]}}, ', '))) > 0")
 
         # Si especifica una zona, obtenemos las coordenadas
         restaurantes_encontrados = []
@@ -166,8 +165,8 @@ def obtener_restaurantes_por_ciudad(
             lat_centro = location_zona['lat']
             lon_centro = location_zona['lng']
 
-        # Búsqueda iterativa en un radio creciente hasta que se encuentren al menos 3 restaurantes
-        while len(restaurantes_encontrados) < 3:
+        # Búsqueda iterativa en un radio creciente hasta que se encuentren al menos 10 restaurantes
+        while len(restaurantes_encontrados) < 10:
             formula_parts_zona = formula_parts.copy()
 
             limites = obtener_limites_geograficos(lat_centro, lon_centro, distancia_km)
@@ -181,7 +180,7 @@ def obtener_restaurantes_por_ciudad(
                 "filterByFormula": filter_formula,
                 "sort[0][field]": "NBH2",
                 "sort[0][direction]": "desc",
-                "maxRecords": 3
+                "maxRecords": 10
             }
 
             response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
@@ -202,13 +201,16 @@ def obtener_restaurantes_por_ciudad(
             restaurantes_encontrados.sort(key=lambda r: haversine(lon_centro, lat_centro, float(r['fields'].get('location/lng', 0)), float(r['fields'].get('location/lat', 0))))
 
         # Devolvemos los restaurantes encontrados y la fórmula de filtro usada
-        return restaurantes_encontrados[:3], filter_formula
+        return restaurantes_encontrados[:10], filter_formula
 
     except Exception as e:
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener restaurantes de la ciudad")
     
+
 @app.post("/procesar-variables")
+
+#Esta es la función que convierte los datos que ha extraído el agente de IA en las variables que usa la función obtener_restaurantes y luego llama a esta misma función y extrae y ofrece los resultados
 async def procesar_variables(request: Request):
     try:
         data = await request.json()
@@ -270,6 +272,7 @@ async def procesar_variables(request: Request):
         # Procesar los restaurantes
         resultados = [
             {
+                "cid": restaurante['fields'].get('cid'),
                 "titulo": restaurante['fields'].get('title', 'Sin título'),
                 "descripcion": restaurante['fields'].get('bh_message', 'Sin descripción'),
                 "rango_de_precios": restaurante['fields'].get('price_range', 'No especificado'),
