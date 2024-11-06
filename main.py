@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Request
 from typing import Optional, List
-from bistrohunter import obtener_restaurantes_varias_zonas, obtener_dia_semana, haversine, obtener_coordenadas
+from bistrohunter import obtener_restaurantes_varias_zonas, obtener_restaurantes_por_ciudad, obtener_dia_semana
 import logging
 from datetime import datetime
 
@@ -27,16 +27,31 @@ async def get_restaurantes(
             fecha = datetime.strptime(date, "%Y-%m-%d")
             dia_semana = obtener_dia_semana(fecha)
 
-        # Llamar a la función para obtener restaurantes en múltiples zonas
-        restaurantes = obtener_restaurantes_varias_zonas(
-            city=city,
-            zonas=zonas,
-            dia_semana=dia_semana,
-            price_range=price_range,
-            cocina=cocina,
-            diet=diet,
-            dish=dish
-        )
+        # Manejar la lógica de búsqueda dependiendo de si hay una o múltiples zonas
+        if len(zonas) > 1:
+            # Búsqueda en múltiples zonas
+            restaurantes = obtener_restaurantes_varias_zonas(
+                city=city,
+                zonas=zonas,
+                dia_semana=dia_semana,
+                price_range=price_range,
+                cocina=cocina,
+                diet=diet,
+                dish=dish
+            )
+        else:
+            # Búsqueda en una sola zona
+            zona = zonas[0] if zonas else None
+            restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
+                city=city,
+                dia_semana=dia_semana,
+                price_range=price_range,
+                cocina=cocina,
+                diet=diet,
+                dish=dish,
+                zona=zona,
+                sort_by_proximity=True
+            )
 
         # Capturar la URL completa y los parámetros de la solicitud
         full_url = str(request.url)
@@ -45,7 +60,7 @@ async def get_restaurantes(
 
         # Verifica si se encontraron restaurantes y accede correctamente a sus campos
         if restaurantes:
-            # Seleccionar los 3 mejores de los 10 mejores
+            # Seleccionar los 3 mejores de los 10 mejores (si es aplicable)
             top_10 = restaurantes[:10]
             top_3 = top_10[:3]
 
