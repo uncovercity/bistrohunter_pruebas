@@ -284,12 +284,7 @@ async def procesar_variables(request: Request):
                 "descripcion": restaurante['fields'].get('bh_message', 'Sin descripción'),
                 "rango_de_precios": restaurante['fields'].get('price_range', 'No especificado'),
                 "url": restaurante['fields'].get('url', 'No especificado'),
-                "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A'),
-                "distancia": (
-                    f"{haversine(float(restaurante['fields'].get('location/lng', 0)), float(restaurante['fields'].get('location/lat', 0)), lat_centro, lon_centro):.2f} km"
-                    if zona and 'location/lng' in restaurante['fields'] and 'location/lat' in restaurante['fields'] else "No calculado"
-                ),
-                "opciones_alimentarias": restaurante['fields'].get('tripadvisor_dietary_restrictions') if diet else None
+                "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A')
             }
             for restaurante in restaurantes
         ]
