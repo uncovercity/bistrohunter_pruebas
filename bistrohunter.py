@@ -182,13 +182,13 @@ def obtener_restaurantes_por_ciudad(
                     formula_parts_zona.append(f"AND({{location/lng}} >= {limites['lon_min']}, {{location/lng}} <= {limites['lon_max']})")
 
                     filter_formula_zona = "AND(" + ", ".join(formula_parts_zona) + ")"
-                    logging.info(f"Fórmula de filtro construida: {filter_formula_zona} para distancia {distancia_km} km")
+                    logging.info(f"Fórmula de filtro construida: {filter_formula_zona} para distancia {distancia_km} km en zona '{zona_item}'")
 
                     params = {
                         "filterByFormula": filter_formula_zona,
                         "sort[0][field]": "NBH2",
                         "sort[0][direction]": "desc",
-                        "maxRecords": 10
+                        "maxRecords": 10  # Solicitamos hasta 10 restaurantes por zona
                     }
 
                     response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
@@ -221,8 +221,9 @@ def obtener_restaurantes_por_ciudad(
                     if restaurante not in restaurantes_encontrados
                 ])
 
-            # Limitamos el total de resultados a 30 restaurantes
-            restaurantes_encontrados = restaurantes_encontrados[:30]
+            # Limitamos el total de resultados a 10 restaurantes por zona
+            max_total_restaurantes = len(zonas_list) * 10
+            restaurantes_encontrados = restaurantes_encontrados[:max_total_restaurantes]
             # Puedes ajustar filter_formula aquí si es necesario
 
         else:
@@ -288,4 +289,96 @@ def obtener_restaurantes_por_ciudad(
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener restaurantes de la ciudad")
 
-# ... (resto del código permanece igual)
+@app.post("/procesar-variables")
+
+#Esta es la función que convierte los datos que ha extraído el agente de IA en las variables que usa la función obtener_restaurantes y luego llama a esta misma función y extrae y ofrece los resultados
+async def procesar_variables(request: Request):
+    try:
+        data = await request.json()
+        logging.info(f"Datos recibidos: {data}")
+        
+        city = data.get('city')
+        date = data.get('date')
+        price_range = data.get('price_range')
+        cocina = data.get('cocina')
+        diet = data.get('diet')
+        dish = data.get('dish')
+        zona = data.get('zona')
+
+        if not city:
+            raise HTTPException(status_code=400, detail="La variable 'city' es obligatoria.")
+
+        dia_semana = None
+        if date:
+            try:
+                fecha = datetime.strptime(date, "%Y-%m-%d")
+                dia_semana = obtener_dia_semana(fecha)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD).")
+
+        # Llama a la función obtener_restaurantes_por_ciudad y construye la filter_formula
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
+            city=city,
+            dia_semana=dia_semana,
+            price_range=price_range,
+            cocina=cocina,
+            diet=diet,
+            dish=dish,
+            zona=zona
+        )
+
+        # Capturar la URL completa y los parámetros de la solicitud
+        full_url = str(request.url)
+        request_method = request.method
+
+        # Capturar la información del request
+        http_request_info = f'{request_method} {full_url} HTTP/1.1 200 OK'
+        
+        # Si no se encontraron restaurantes, devolver el mensaje y el request_info
+        if not restaurantes:
+            return {
+                "request_info": http_request_info,
+                "variables": {
+                    "city": city,
+                    "zone": zona,
+                    "cuisine_type": cocina,
+                    "price_range": price_range,
+                    "date": date,
+                    "alimentary_restrictions": diet,
+                    "specific_dishes": dish
+                },
+                "mensaje": "No se encontraron restaurantes con los filtros aplicados."
+            }
+        
+        # Procesar los restaurantes
+        resultados = [
+            {
+                "cid": restaurante['fields'].get('cid'),
+                "titulo": restaurante['fields'].get('title', 'Sin título'),
+                "descripcion": restaurante['fields'].get('bh_message', 'Sin descripción'),
+                "rango_de_precios": restaurante['fields'].get('price_range', 'No especificado'),
+                "url": restaurante['fields'].get('url', 'No especificado'),
+                "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A')
+            }
+            for restaurante in restaurantes
+        ]
+        
+        # Devolver los resultados junto con el log de la petición HTTP
+        return {
+            "request_info": http_request_info,
+            "variables": {
+                "city": city,
+                "zone": zona,
+                "cuisine_type": cocina,
+                "price_range": price_range,
+                "date": date,
+                "alimentary_restrictions": diet,
+                "specific_dishes": dish
+            },
+            "resultados": resultados
+        }
+    
+    except Exception as e:
+        logging.error(f"Error al procesar variables: {e}")
+        return {"error": "Ocurrió un error al procesar las variables"}
+
