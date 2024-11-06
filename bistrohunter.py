@@ -1,4 +1,115 @@
-# ... (resto de los imports y configuraciones)
+#IMPORTS
+import os
+from typing import Optional, List
+from fastapi import FastAPI, Query, HTTPException, Request
+from datetime import datetime
+import requests
+import logging
+from functools import wraps
+from cachetools import TTLCache
+from math import radians, cos, sin, asin, sqrt
+from fuzzywuzzy import fuzz, process
+
+#Desplegar fast api (no tocar)
+app = FastAPI()
+
+#Configuración del logging (nos va a decir dónde están los fallos)
+logging.basicConfig(level=logging.INFO)
+
+#Secretos. Esto son urls, claves, tokens y demás que no deben mostrarse públicamente ni subirse a ningún sitio
+BASE_ID = os.getenv('BASE_ID')
+AIRTABLE_PAT = os.getenv('AIRTABLE_PAT')
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL')
+
+DAYS_ES = {
+    "Monday": "lunes",
+    "Tuesday": "martes",
+    "Wednesday": "miércoles",
+    "Thursday": "jueves",
+    "Friday": "viernes",
+    "Saturday": "sábado",
+    "Sunday": "domingo"
+}
+
+#Función que obtiene la fecha actual, obtiene el día de la semana que corresponde a esa fecha y cambia el día al español
+def obtener_dia_semana(fecha: datetime) -> str:
+    try:
+        dia_semana_en = fecha.strftime('%A')  
+        dia_semana_es = DAYS_ES.get(dia_semana_en, dia_semana_en)  
+        return dia_semana_es.lower()
+    except Exception as e:
+        logging.error(f"Error al obtener el día de la semana: {e}")
+        raise HTTPException(status_code=500, detail="Error al procesar la fecha")
+
+#Calcula la distancia haversiana entre dos puntos (filtro de zona)
+def haversine(lon1, lat1, lon2, lat2):
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    km = 6367 * c
+    return km
+
+#Función que obtiene las coordenadas de la zona que ha especificado el cliente
+def obtener_coordenadas(zona: str, ciudad: str) -> Optional[dict]:
+    try:
+        url = f"https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": f"{zona}, {ciudad}",
+            "key": GOOGLE_MAPS_API_KEY
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data['status'] == 'OK':
+            location = data['results'][0]['geometry']['location']
+            return location
+        else:
+            logging.error(f"Error en la geocodificación: {data['status']}")
+            return None
+    except Exception as e:
+        logging.error(f"Error al obtener coordenadas de la zona: {e}")
+        return None
+
+#Caché (no tocar)
+restaurantes_cache = TTLCache(maxsize=10000, ttl=60*30)
+
+def cache_airtable_request(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        cache_key = f"{func.__name__}:{args}:{kwargs}"
+        if cache_key in restaurantes_cache:
+            return restaurantes_cache[cache_key]
+        result = func(*args, **kwargs)
+        restaurantes_cache[cache_key] = result
+        return result
+    return wrapper
+
+@cache_airtable_request
+
+#Función que realiza la petición a la API de Airtable
+def airtable_request(url, headers, params, view_id: Optional[str] = None):
+    if view_id:
+        params["view"] = view_id
+    response = requests.get(url, headers=headers, params=params)
+    return response.json() if response.status_code == 200 else None
+
+@cache_airtable_request
+
+#Función que establece límites geográficos en los que se va a buscar (2 km, 4 km, 6 km, etc.)
+def obtener_limites_geograficos(lat: float, lon: float, distancia_km: float = 2.0) -> dict:
+    lat_delta = distancia_km / 111.0
+    lon_delta = distancia_km / (111.0 * cos(radians(lat)))
+    
+    return {
+        "lat_min": lat - lat_delta,
+        "lat_max": lat + lat_delta,
+        "lon_min": lon - lon_delta,
+        "lon_max": lon + lon_delta
+    }
+
+@cache_airtable_request
 
 # Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
 def obtener_restaurantes_por_ciudad(
