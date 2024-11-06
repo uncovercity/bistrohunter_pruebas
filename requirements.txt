@@ -4,4 +4,3 @@ openai
 uvicorn
 cachetools
 datetime
-fuzzywuzzy
