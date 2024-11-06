@@ -11,7 +11,7 @@ app = FastAPI()
 async def root():
     return {"message": "Bienvenido a la API de búsqueda de restaurantes"}
 
-@app.get("/api/getRestaurantsPrueba") #Dentro de nuestra propia API nosotros podemos llamar a diferentes funciones. Aquí llama a get_restaurantes
+@app.get("/api/getRestaurantsPrueba")
 async def get_restaurantes(
     request: Request,  
     city: str, 
@@ -29,7 +29,9 @@ async def get_restaurantes(
             dia_semana = obtener_dia_semana(fecha)
 
         # Llamar a la función para obtener los restaurantes y la fórmula de filtro
-        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona, sort_by_proximity=True)
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
+            city, dia_semana, price_range, cocina, diet, dish, zona, sort_by_proximity=True
+        )
         
         # Capturar la URL completa y los parámetros de la solicitud
         full_url = str(request.url)
@@ -76,7 +78,7 @@ async def get_restaurantes(
         logging.error(f"Error al buscar restaurantes: {e}")
         raise HTTPException(status_code=500, detail="Error al buscar restaurantes")
         
-@app.post("/procesar-variables") #Aquí llama a procesar_variables
+@app.post("/procesar-variables")
 async def procesar_variables(request: Request):
     try:
         data = await request.json()
@@ -101,8 +103,8 @@ async def procesar_variables(request: Request):
             except ValueError:
                 raise HTTPException(status_code=400, detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD).")
 
-        # Llamar a la función para obtener los restaurantes
-        restaurantes = obtener_restaurantes_por_ciudad(
+        # Llamar a la función para obtener los restaurantes y la fórmula de filtro
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
             price_range=price_range,
@@ -122,11 +124,12 @@ async def procesar_variables(request: Request):
             return {
                 "restaurants": [
                     {
-                        "cid": restaurante['fields'].get('cid'),
+                        "cid": r['fields'].get('cid'),
                         "title": r['fields'].get('title', 'Sin título'),
                         "description": r['fields'].get('bh_message', 'Sin descripción'),
                         "price_range": r['fields'].get('price_range', 'No especificado'),
-                        "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A')
+                        "puntuacion_bistrohunter": r['fields'].get('NBH2', 'N/A'),
+                        "url": r['fields'].get('url', 'No especificado')
                     } for r in restaurantes
                 ],
                 "variables": {
@@ -137,7 +140,7 @@ async def procesar_variables(request: Request):
                     "dish": dish,
                     "zone": zona
                 },
-                "api_call": api_call  # Devolver la llamada a la API
+                "api_call": api_call
             }
         else:
             return {
@@ -154,4 +157,5 @@ async def procesar_variables(request: Request):
             }
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
-        return {"error": "Ocurrió un error al procesar las variables"}
+        raise HTTPException(status_code=500, detail="Error al procesar variables")
+
