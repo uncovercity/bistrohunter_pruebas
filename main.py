@@ -19,7 +19,7 @@ async def get_restaurantes(
     cocina: Optional[str] = Query(None, description="El tipo de cocina que prefiere el cliente"),
     diet: Optional[str] = Query(None, description="Dieta que necesita el cliente"),
     dish: Optional[str] = Query(None, description="Plato por el que puede preguntar un cliente específicamente"),
-    zonas: List[str] = Query([], description="Lista de zonas específicas dentro de la ciudad")  # Modificado para aceptar varias zonas
+    zonas: str = Query("", description="Lista de zonas específicas dentro de la ciudad, separadas por comas")  # Cambio para aceptar zonas como string separado por comas
 ):
     try:
         dia_semana = None
@@ -27,12 +27,15 @@ async def get_restaurantes(
             fecha = datetime.strptime(date, "%Y-%m-%d")
             dia_semana = obtener_dia_semana(fecha)
 
+        # Convertir zonas a lista si se proporcionan como string separado por comas
+        zonas_list = [zona.strip() for zona in zonas.split(",")] if zonas else []
+
         # Manejar la lógica de búsqueda dependiendo de si hay una o múltiples zonas
-        if len(zonas) > 1:
+        if len(zonas_list) > 1:
             # Búsqueda en múltiples zonas
             restaurantes = obtener_restaurantes_varias_zonas(
                 city=city,
-                zonas=zonas,
+                zonas=zonas_list,
                 dia_semana=dia_semana,
                 price_range=price_range,
                 cocina=cocina,
@@ -41,7 +44,7 @@ async def get_restaurantes(
             )
         else:
             # Búsqueda en una sola zona
-            zona = zonas[0] if zonas else None
+            zona = zonas_list[0] if zonas_list else None
             restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
                 city=city,
                 dia_semana=dia_semana,
@@ -91,7 +94,7 @@ async def get_restaurantes(
                     "cuisine_type": cocina,
                     "diet": diet,
                     "dish": dish,
-                    "zones": zonas
+                    "zones": zonas_list
                 },
                 "api_call": api_call
             }
@@ -104,10 +107,11 @@ async def get_restaurantes(
                     "cuisine_type": cocina,
                     "diet": diet,
                     "dish": dish,
-                    "zones": zonas
+                    "zones": zonas_list
                 },
                 "api_call": api_call
             }
     except Exception as e:
         logging.error(f"Error al buscar restaurantes: {e}")
         raise HTTPException(status_code=500, detail="Error al buscar restaurantes")
+
