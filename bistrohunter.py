@@ -111,6 +111,7 @@ def obtener_limites_geograficos(lat: float, lon: float, distancia_km: float = 2.
 @cache_airtable_request
 
 #Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
+# Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
 def obtener_restaurantes_por_ciudad(
     city: str, 
     dia_semana: Optional[str] = None, 
@@ -118,8 +119,9 @@ def obtener_restaurantes_por_ciudad(
     cocina: Optional[str] = None,
     diet: Optional[str] = None,
     dish: Optional[str] = None,
-    zona: Optional[str] = None
-) -> (List[dict], str):  # Añadimos str para devolver también la fórmula
+    zona: Optional[str] = None,
+    sort_by_proximity: bool = True  # Nuevo parámetro para ordenar por proximidad
+) -> (List[dict], str):
     try:
         table_name = 'Restaurantes DB'
         url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}"
@@ -196,9 +198,13 @@ def obtener_restaurantes_por_ciudad(
             if distancia_km > 8:
                 break
 
-        # Ordenar restaurantes por distancia si se especificó una zona o ciudad
-        if location:
-            restaurantes_encontrados.sort(key=lambda r: haversine(lon_centro, lat_centro, float(r['fields'].get('location/lng', 0)), float(r['fields'].get('location/lat', 0))))
+        # Ordenar restaurantes por distancia si se especifica
+        if sort_by_proximity and location:
+            restaurantes_encontrados.sort(key=lambda r: haversine(
+                lon_centro, lat_centro,
+                float(r['fields'].get('location/lng', 0)),
+                float(r['fields'].get('location/lat', 0))
+            ))
 
         # Devolvemos los restaurantes encontrados y la fórmula de filtro usada
         return restaurantes_encontrados[:10], filter_formula
@@ -207,7 +213,6 @@ def obtener_restaurantes_por_ciudad(
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener restaurantes de la ciudad")
     
-
 @app.post("/procesar-variables")
 
 #Esta es la función que convierte los datos que ha extraído el agente de IA en las variables que usa la función obtener_restaurantes y luego llama a esta misma función y extrae y ofrece los resultados
