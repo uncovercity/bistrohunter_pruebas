@@ -110,7 +110,6 @@ def obtener_limites_geograficos(lat: float, lon: float, distancia_km: float = 2.
 
 @cache_airtable_request
 
-#Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
 # Función que toma las variables que le ha dado el asistente de IA para hacer la llamada a la API de Airtable con una serie de condiciones
 def obtener_restaurantes_por_ciudad(
     city: str, 
@@ -149,7 +148,6 @@ def obtener_restaurantes_por_ciudad(
 
         # Si especifica una zona, obtenemos las coordenadas
         restaurantes_encontrados = []
-        distancia_km = 2.0
 
         # Obtener coordenadas de la ciudad usando Google Maps
         location = obtener_coordenadas(city, city)
@@ -167,7 +165,8 @@ def obtener_restaurantes_por_ciudad(
             lat_centro = location_zona['lat']
             lon_centro = location_zona['lng']
 
-        # Búsqueda iterativa en un radio creciente hasta que se encuentren al menos 10 restaurantes
+        # Realizar una búsqueda inicial exclusivamente dentro de la zona especificada
+        distancia_km = 1.0  # Comenzar con un radio pequeño, 1 km
         while len(restaurantes_encontrados) < 10:
             formula_parts_zona = formula_parts.copy()
 
@@ -193,9 +192,12 @@ def obtener_restaurantes_por_ciudad(
                 ]
                 restaurantes_encontrados.extend(restaurantes_filtrados)
 
-            distancia_km += 2.0
+            if len(restaurantes_encontrados) >= 10:
+                break  # Si se alcanzan 10 resultados, detener la búsqueda
 
-            if distancia_km > 8:
+            distancia_km += 1.0  # Aumentar el radio progresivamente para ampliar la búsqueda
+
+            if distancia_km > 8:  # Limitar el rango máximo de búsqueda a 8 km
                 break
 
         # Ordenar restaurantes por distancia si se especifica
