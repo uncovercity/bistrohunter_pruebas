@@ -29,7 +29,7 @@ async def get_restaurantes(
             dia_semana = obtener_dia_semana(fecha)
 
         # Llamar a la función para obtener los restaurantes y la fórmula de filtro
-        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona)
+        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(city, dia_semana, price_range, cocina, diet, dish, zona, sort_by_proximity=True)
         
         # Capturar la URL completa y los parámetros de la solicitud
         full_url = str(request.url)
