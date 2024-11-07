@@ -138,7 +138,7 @@ def obtener_restaurantes_por_ciudad(
             formula_parts.append(f"FIND('{price_range}', ARRAYJOIN({{price_range}}, ', ')) > 0")
 
         if cocina:
-            formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{comida_[TESTING]}})) > 0")
+            formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{categories_string}})) > 0")
 
         if diet:
             formula_parts.append(f"FIND(LOWER('{diet}'), LOWER({{comida_[TESTING]}})) > 0")
