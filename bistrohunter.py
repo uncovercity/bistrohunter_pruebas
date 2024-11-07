@@ -136,16 +136,16 @@ def obtener_restaurantes_por_ciudad(
 
         if price_range:
             ranges = price_range.split(',')
-                if len(ranges) == 1:
-                    # Mantener la fórmula original para un solo rango
-                    formula_parts.append(f"FIND('{price_range}', ARRAYJOIN({{price_range}}, ', ')) > 0")
-                else:
-                    # Crear una condición OR para múltiples rangos
-                    conditions = []
-                    for r in ranges:
-                        conditions.append(f"FIND('{r.strip()}', ARRAYJOIN({{price_range}}, ', ')) > 0")
-                    or_condition = ', '.join(conditions)
-                    formula_parts.append(f"OR({or_condition})")
+            if len(ranges) == 1:
+                # Mantener la fórmula original para un solo rango
+                formula_parts.append(f"FIND('{price_range}', ARRAYJOIN({{price_range}}, ', ')) > 0")
+            else:
+                # Crear una condición OR para múltiples rangos
+                conditions = []
+                for r in ranges:
+                    conditions.append(f"FIND('{r.strip()}', ARRAYJOIN({{price_range}}, ', ')) > 0")
+                or_condition = ', '.join(conditions)
+                formula_parts.append(f"OR({or_condition})")
 
         if cocina:
             formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{categories_string}})) > 0")
