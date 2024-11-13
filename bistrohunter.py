@@ -62,8 +62,13 @@ def obtener_coordenadas(zona: str, ciudad: str) -> Optional[dict]:
         response = requests.get(url, params=params)
         data = response.json()
         if data['status'] == 'OK':
-            location = data['results'][0]['geometry']['location']
-            return location
+            geometry = data['results'][0]['geometry']
+            location = geometry['location']
+            viewport = geometry['viewport']
+            return {
+                "location": location,
+                "viewport": viewport
+            }
         else:
             logging.error(f"Error en la geocodificación: {data['status']}")
             return None
@@ -171,70 +176,53 @@ def obtener_restaurantes_por_ciudad(
 
             # Iteramos sobre cada zona en la lista
             for zona_item in zonas_list:
-                # Obtenemos las coordenadas de la zona
+                # Obtenemos las coordenadas y viewport de la zona
                 location_zona = obtener_coordenadas(zona_item, city)
                 if not location_zona:
                     logging.error(f"Zona '{zona_item}' no encontrada.")
                     continue  # Saltamos a la siguiente zona si no se encuentra
 
-                lat_centro = location_zona['lat']
-                lon_centro = location_zona['lng']
+                location = location_zona['location']
+                viewport = location_zona['viewport']
 
-                # Realizamos la búsqueda para esta zona
-                distancia_km = 0.5  # Comenzamos con un radio pequeño, 0.5 km
-                restaurantes_encontrados_zona = []
+                lat_centro = location['lat']
+                lon_centro = location['lng']
 
-                while len(restaurantes_encontrados_zona) < 10:
-                    formula_parts_zona = formula_parts.copy()
+                # Extraemos los límites del viewport
+                lat_min = min(viewport['southwest']['lat'], viewport['northeast']['lat'])
+                lat_max = max(viewport['southwest']['lat'], viewport['northeast']['lat'])
+                lon_min = min(viewport['southwest']['lng'], viewport['northeast']['lng'])
+                lon_max = max(viewport['southwest']['lng'], viewport['northeast']['lng'])
 
-                    limites = obtener_limites_geograficos(lat_centro, lon_centro, distancia_km)
-                    formula_parts_zona.append(f"AND({{location/lat}} >= {limites['lat_min']}, {{location/lat}} <= {limites['lat_max']})")
-                    formula_parts_zona.append(f"AND({{location/lng}} >= {limites['lon_min']}, {{location/lng}} <= {limites['lon_max']})")
+                formula_parts_zona = formula_parts.copy()
 
-                    filter_formula_zona = "AND(" + ", ".join(formula_parts_zona) + ")"
-                    logging.info(f"Fórmula de filtro construida: {filter_formula_zona} para distancia {distancia_km} km en zona '{zona_item}'")
+                # Añadimos los límites a la fórmula de búsqueda
+                formula_parts_zona.append(f"{{location/lat}} >= {lat_min}")
+                formula_parts_zona.append(f"{{location/lat}} <= {lat_max}")
+                formula_parts_zona.append(f"{{location/lng}} >= {lon_min}")
+                formula_parts_zona.append(f"{{location/lng}} <= {lon_max}")
 
-                    params = {
-                        "filterByFormula": filter_formula_zona,
-                        "sort[0][field]": "NBH2",
-                        "sort[0][direction]": "desc",
-                        "maxRecords": 10  # Solicitamos hasta 10 restaurantes por zona
-                    }
+                filter_formula_zona = "AND(" + ", ".join(formula_parts_zona) + ")"
+                logging.info(f"Fórmula de filtro construida: {filter_formula_zona} para zona '{zona_item}'")
 
-                    response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
-                    if response_data and 'records' in response_data:
-                        restaurantes_filtrados = [
-                            restaurante for restaurante in response_data['records']
-                            if restaurante not in restaurantes_encontrados_zona  # Evitar duplicados en la misma zona
-                        ]
-                        restaurantes_encontrados_zona.extend(restaurantes_filtrados)
+                params = {
+                    "filterByFormula": filter_formula_zona,
+                    "sort[0][field]": "NBH2",
+                    "sort[0][direction]": "desc",
+                    "maxRecords": 10  # Solicitamos hasta 10 restaurantes por zona
+                }
 
-                    if len(restaurantes_encontrados_zona) >= 10:
-                        break  # Si alcanzamos 10 restaurantes para esta zona, pasamos a la siguiente
-
-                    distancia_km += 0.5  # Aumentamos el radio progresivamente
-
-                    if distancia_km > 2:  # Limitar el rango máximo de búsqueda a 2 km
-                        break
-
-                # Ordenamos los restaurantes por proximidad si se especifica
-                if sort_by_proximity and location_zona:
-                    restaurantes_encontrados_zona.sort(key=lambda r: haversine(
-                        lon_centro, lat_centro,
-                        float(r['fields'].get('location/lng', 0)),
-                        float(r['fields'].get('location/lat', 0))
-                    ))
-
-                # Agregamos los restaurantes de esta zona a la lista principal, evitando duplicados
-                restaurantes_encontrados.extend([
-                    restaurante for restaurante in restaurantes_encontrados_zona
-                    if restaurante not in restaurantes_encontrados
-                ])
+                response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
+                if response_data and 'records' in response_data:
+                    restaurantes_filtrados = [
+                        restaurante for restaurante in response_data['records']
+                        if restaurante not in restaurantes_encontrados  # Evitar duplicados
+                    ]
+                    restaurantes_encontrados.extend(restaurantes_filtrados)
 
             # Limitamos el total de resultados a 10 restaurantes por zona
             max_total_restaurantes = len(zonas_list) * 10
             restaurantes_encontrados = restaurantes_encontrados[:max_total_restaurantes]
-            # Puedes ajustar filter_formula aquí si es necesario
 
         else:
             # Si no se especifica zona, procedemos como antes
@@ -243,8 +231,8 @@ def obtener_restaurantes_por_ciudad(
             if not location:
                 raise HTTPException(status_code=404, detail="Ciudad no encontrada.")
             
-            lat_centro = location['lat']
-            lon_centro = location['lng']
+            lat_centro = location['location']['lat']
+            lon_centro = location['location']['lng']
 
             # Realizamos una búsqueda inicial dentro de la ciudad
             distancia_km = 0.5  # Comenzamos con un radio pequeño, 0.5 km
@@ -252,8 +240,10 @@ def obtener_restaurantes_por_ciudad(
                 formula_parts_city = formula_parts.copy()
 
                 limites = obtener_limites_geograficos(lat_centro, lon_centro, distancia_km)
-                formula_parts_city.append(f"AND({{location/lat}} >= {limites['lat_min']}, {{location/lat}} <= {limites['lat_max']})")
-                formula_parts_city.append(f"AND({{location/lng}} >= {limites['lon_min']}, {{location/lng}} <= {limites['lon_max']})")
+                formula_parts_city.append(f"{{location/lat}} >= {limites['lat_min']}")
+                formula_parts_city.append(f"{{location/lat}} <= {limites['lat_max']}")
+                formula_parts_city.append(f"{{location/lng}} >= {limites['lon_min']}")
+                formula_parts_city.append(f"{{location/lng}} <= {limites['lon_max']}")
 
                 filter_formula = "AND(" + ", ".join(formula_parts_city) + ")"
                 logging.info(f"Fórmula de filtro construida: {filter_formula} para distancia {distancia_km} km")
