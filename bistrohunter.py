@@ -181,7 +181,7 @@ def obtener_restaurantes_por_ciudad(
                 lon_centro = location_zona['lng']
 
                 # Realizamos la búsqueda para esta zona
-                distancia_km = 1.0  # Comenzamos con un radio pequeño, 1 km
+                distancia_km = 0.5  # Comenzamos con un radio pequeño, 0.5 km
                 restaurantes_encontrados_zona = []
 
                 while len(restaurantes_encontrados_zona) < 10:
@@ -212,9 +212,9 @@ def obtener_restaurantes_por_ciudad(
                     if len(restaurantes_encontrados_zona) >= 10:
                         break  # Si alcanzamos 10 restaurantes para esta zona, pasamos a la siguiente
 
-                    distancia_km += 1.0  # Aumentamos el radio progresivamente
+                    distancia_km += 0.5  # Aumentamos el radio progresivamente
 
-                    if distancia_km > 8:  # Limitar el rango máximo de búsqueda a 8 km
+                    if distancia_km > 2:  # Limitar el rango máximo de búsqueda a 2 km
                         break
 
                 # Ordenamos los restaurantes por proximidad si se especifica
@@ -247,7 +247,7 @@ def obtener_restaurantes_por_ciudad(
             lon_centro = location['lng']
 
             # Realizamos una búsqueda inicial dentro de la ciudad
-            distancia_km = 1.0  # Comenzamos con un radio pequeño, 1 km
+            distancia_km = 0.5  # Comenzamos con un radio pequeño, 0.5 km
             while len(restaurantes_encontrados) < 10:
                 formula_parts_city = formula_parts.copy()
 
@@ -276,9 +276,9 @@ def obtener_restaurantes_por_ciudad(
                 if len(restaurantes_encontrados) >= 10:
                     break  # Si alcanzamos 10 resultados, detenemos la búsqueda
 
-                distancia_km += 1.0  # Aumentamos el radio
+                distancia_km += 0.5  # Aumentamos el radio
 
-                if distancia_km > 8:  # Limitar el rango máximo de búsqueda a 8 km
+                if distancia_km > 2:  # Limitar el rango máximo de búsqueda a 2 km
                     break
 
             # Ordenamos los restaurantes por proximidad si se especifica
