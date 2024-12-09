@@ -124,12 +124,8 @@ async def procesar_variables(request: Request):
             return {
                 "restaurants": [
                     {
-                        "cid": r['fields'].get('cid'),
-                        "title": r['fields'].get('title', 'Sin título'),
-                        "description": r['fields'].get('bh_message', 'Sin descripción'),
-                        "price_range": r['fields'].get('price_range', 'No especificado'),
-                        "puntuacion_bistrohunter": r['fields'].get('NBH2', 'N/A'),
-                        "url": r['fields'].get('url', 'No especificado')
+                        "bh_message": r['fields'].get('bh_message', 'Sin descripción'),
+                        "url": restaurante['fields'].get('url', 'No especificado')
                     } for r in restaurantes
                 ],
                 "variables": {
@@ -158,4 +154,3 @@ async def procesar_variables(request: Request):
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
         raise HTTPException(status_code=500, detail="Error al procesar variables")
-
