@@ -57,7 +57,8 @@ def obtener_coordenadas(zona: str, ciudad: str) -> Optional[dict]:
         url = f"https://maps.googleapis.com/maps/api/geocode/json"
         params = {
             "address": f"{zona}, {ciudad}",
-            "key": GOOGLE_MAPS_API_KEY
+            "key": GOOGLE_MAPS_API_KEY,
+            "components": "country:ES"
         }
         response = requests.get(url, params=params)
         data = response.json()
@@ -353,12 +354,8 @@ async def procesar_variables(request: Request):
         # Procesar los restaurantes
         resultados = [
             {
-                "cid": restaurante['fields'].get('cid'),
-                "title": restaurante['fields'].get('title', 'Sin título'),
-                "description": restaurante['fields'].get('bh_message', 'Sin descripción'),
-                "price_range": restaurante['fields'].get('price_range', 'No especificado'),
-                "url": restaurante['fields'].get('url', 'No especificado'),
-                "puntuacion_bistrohunter": restaurante['fields'].get('NBH2', 'N/A')
+                "bh_message": restaurante['fields'].get('bh_message', 'Sin descripción'),
+                "url": restaurante['fields'].get('url', 'No especificado')
             }
             for restaurante in restaurantes
         ]
@@ -381,4 +378,3 @@ async def procesar_variables(request: Request):
     except Exception as e:
         logging.error(f"Error al procesar variables: {e}")
         return {"error": "Ocurrió un error al procesar las variables"}
-
