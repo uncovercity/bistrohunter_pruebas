@@ -160,7 +160,7 @@ def obtener_restaurantes_por_ciudad(
             formula_parts.append(f"FIND(LOWER('{diet}'), LOWER({{comida_[TESTING]}})) > 0")
         
         if dish:
-            formula_parts.append(f"FIND(LOWER('{dish}'), LOWER(ARRAYJOIN({{google_reviews}}, ', '))) > 0")
+            formula_parts.append(f"FIND(LOWER('{dish}'), LOWER({{google_reviews}}, ', ')) > 0")
 
         # Lista para almacenar todos los restaurantes encontrados
         restaurantes_encontrados = []
