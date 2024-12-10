@@ -155,6 +155,9 @@ def obtener_restaurantes_por_ciudad(
 
         if cocina:
             formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{categories_string}})) > 0")
+
+        if diet:
+            formula_parts.append(f"SEARCH('{diet}', {{categories_string}}) > 0")
         
         if dish:
             formula_parts.append(f"SEARCH('{dish}', {{google_reviews}}) > 0")
