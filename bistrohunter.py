@@ -156,8 +156,10 @@ def obtener_restaurantes_por_ciudad(
         if cocina:
             cocinas = cocina.split(',')
             if len(cocinas) == 1:
-                formula_parts.append(f"SEARCH('{cocina}', {{categories_string}}) > 0")
+                # Mantener la fórmula original para una sola cocina
+                formula_parts.append(f"SEARCH('{cocina.strip()}', {{categories_string}}) > 0")
             else:
+                # Crear una condición OR para múltiples cocinas
                 conditions = []
                 for c in cocinas:
                     conditions.append(f"SEARCH('{c.strip()}', {{categories_string}}) > 0")
