@@ -238,7 +238,7 @@ def obtener_restaurantes_por_ciudad(
         else:
             # Si no se especifica zona, procedemos como antes
             # Obtenemos las coordenadas de la ciudad
-            location = obtener_coordenadas(city, "España")
+            location = obtener_coordenadas(city)
             if not location:
                 raise HTTPException(status_code=404, detail="Ciudad no encontrada.")
             
