@@ -154,7 +154,15 @@ def obtener_restaurantes_por_ciudad(
                 formula_parts.append(f"OR({or_condition})")
 
         if cocina:
-            formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{categories_string}})) > 0")
+            cocinas = cocina.split(',')
+            if len(cocinas) == 1:
+                formula_parts.append(f"FIND(LOWER('{cocina}'), LOWER({{categories_string}})) > 0")
+            else:
+                conditions = []
+                for c in cocinas:
+                    conditions.append(f"FIND('{c.strip()}', LOWER({{categories_string}})) > 0")
+                or_condition = ', '.join(conditions)
+                formula_parts.append(f"OR({or_condition})")
 
         if diet:
             formula_parts.append(f"SEARCH('{diet}', {{categories_string}}) > 0")
