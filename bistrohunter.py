@@ -196,11 +196,14 @@ def obtener_restaurantes_por_ciudad(
         
         if dish:
             dishes = dish.split(',')
-            all_conditions = [f"SEARCH('{d.strip()}', {{google_reviews}}) > 0" for d in dishes]
-            all_condition = ' AND '.join(all_conditions)
-            any_conditions = [f"SEARCH('{d.strip()}', {{google_reviews}}) > 0" for d in dishes]
-            any_condition = ' OR '.join(any_conditions)
-            formula_parts.append(f"IF({all_condition}, {all_condition}, {any_condition})")
+            if len(dishes) ==1:
+                formula_parts.append(f"SEARCH('{dish}', {{google_reviews}}) > 0")
+            else:
+                all_conditions = [f"SEARCH('{d.strip()}', {{google_reviews}}) > 0" for d in dishes]
+                all_condition = ' AND '.join(all_conditions)
+                any_conditions = [f"SEARCH('{d.strip()}', {{google_reviews}}) > 0" for d in dishes]
+                any_condition = ' OR '.join(any_conditions)
+                formula_parts.append(f"IF({all_condition}, {all_condition}, {any_condition})")
 
         # Lista para almacenar todos los restaurantes encontrados
         restaurantes_encontrados = []
