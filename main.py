@@ -90,7 +90,7 @@ async def get_restaurantes(
         }
 
     except Exception as e:
-        logging.error(f"Error al buscar restaurantes en /api/getRestaurants: {e}")
+        logging.error(f"Error al buscar restaurantes en /api/getRestaurantsPrueba: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 @app.post("/procesar-variables")
