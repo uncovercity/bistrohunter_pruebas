@@ -198,7 +198,7 @@ def obtener_restaurantes_por_ciudad(
                     "filterByFormula": final_filter_formula,
                     "sort[0][field]": "NBH2",
                     "sort[0][direction]": "desc",
-                    "maxRecords": 10
+                    "maxRecords": 80
                 }
 
                 response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
@@ -210,8 +210,8 @@ def obtener_restaurantes_por_ciudad(
                     ]
                     restaurantes_encontrados.extend(nuevos_restaurantes)
 
-            # Ajustamos la cantidad máximo de restaurantes
-            max_total_restaurantes = len(zonas_list) * 10
+            # Ajustamos la cantidad máxima de restaurantes
+            max_total_restaurantes = len(zonas_list) * 80
             restaurantes_encontrados = restaurantes_encontrados[:max_total_restaurantes]
 
         # 3) Si NO hay ZONA, utilizamos coordenadas (y un radio incremental)
@@ -234,7 +234,7 @@ def obtener_restaurantes_por_ciudad(
             logging.info(f"Coordenadas procesadas: lat={lat_centro}, lon={lon_centro}")
 
             # Mientras no tengamos al menos 10 resultados, agrandamos el radio
-            while len(restaurantes_encontrados) < 10:
+            while len(restaurantes_encontrados) < 80:
                 bounding_box = calcular_bounding_box(lat_centro, lon_centro, radio_km)
                 lat_min = bounding_box['lat_min']
                 lat_max = bounding_box['lat_max']
@@ -259,7 +259,7 @@ def obtener_restaurantes_por_ciudad(
                     "filterByFormula": final_filter_formula,
                     "sort[0][field]": "NBH2",
                     "sort[0][direction]": "desc",
-                    "maxRecords": 10
+                    "maxRecords": 80
                 }
 
                 response_data = airtable_request(url, headers, params)
@@ -270,12 +270,12 @@ def obtener_restaurantes_por_ciudad(
                     ]
                     restaurantes_encontrados.extend(nuevos_restaurantes)
 
-                if len(restaurantes_encontrados) >= 10:
+                if len(restaurantes_encontrados) >= 80:
                     break
 
                 # Incrementamos el radio para volver a intentar
-                radio_km += 0.5
-                if radio_km > 2:  # límite de 2 km
+                radio_km += 1
+                if radio_km > 20:  # límite de 2 km
                     break
 
             # 4) Orden opcional por proximidad
@@ -290,7 +290,7 @@ def obtener_restaurantes_por_ciudad(
                 )
 
             # Tomamos los primeros 10
-            restaurantes_encontrados = restaurantes_encontrados[:10]
+            restaurantes_encontrados = restaurantes_encontrados[:80]
 
         return restaurantes_encontrados, final_filter_formula
 
