@@ -1,4 +1,4 @@
-# IMPORTS
+# IMPORTS (NO TOCAR)
 from fastapi import FastAPI, Query, HTTPException, Request
 from typing import Optional
 import logging
@@ -10,12 +10,14 @@ from bistrohunter import (
     haversine,
 )
 
+# DEFINIMOS NUESTRA API
 app = FastAPI()
 
 @app.get("/")
 async def root():
     return {"message": "Bienvenido a la API de búsqueda de restaurantes"}
 
+#NUESTRO ENDPOINT
 @app.get("/api/getRestaurantsPrueba")
 async def get_restaurantes(
     request: Request,
@@ -39,12 +41,12 @@ async def get_restaurantes(
     sort_by_proximity=True
 )
         
-        # Capturar la URL completa y los parámetros de la solicitud
+        # SOLICITUD
         full_url = str(request.url)
         request_method = request.method
         api_call = f"{request_method} {full_url}"
 
-        # Revisar si hay restaurantes
+        # ¿Hay restaurantes?
         if not restaurantes:
             return {
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados.",
@@ -61,7 +63,7 @@ async def get_restaurantes(
                 "filter_formula": filter_formula  # opcional, para debug
             }
 
-        # Si sí hay restaurantes
+        # Hay restaurantes
         resultados = [
             {
                 "cid": r["fields"].get("cid"),
@@ -93,6 +95,7 @@ async def get_restaurantes(
         logging.error(f"Error al buscar restaurantes en /api/getRestaurantsPrueba: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
+# PROCESAMOS VARIABLES DEL CLIENTE
 @app.post("/procesar-variables")
 async def procesar_variables(request: Request):
     try:
