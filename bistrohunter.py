@@ -1,4 +1,4 @@
-# IMPORTS
+# IMPORTS (NO TOCAR)
 import os
 from typing import Optional, List, Tuple
 from fastapi import FastAPI, Query, HTTPException, Request
@@ -28,7 +28,8 @@ def haversine(lon1, lat1, lon2, lat2):
     c = 2 * asin(sqrt(a))
     km = 6367 * c
     return km
-
+    
+# Calculamos la bounding_box dependiendo del punto central de búsqueda (coordenadas del centro de la ciudad o de la zona que pida el cliente)
 def calcular_bounding_box(lat, lon, radio_km=1):
     # Aproximación: 1 grado de latitud ~ 111.32 km
     km_por_grado_lat = 111.32
@@ -85,7 +86,6 @@ def airtable_request(url, headers, params, view_id: Optional[str] = None):
     response = requests.get(url, headers=headers, params=params)
     return response.json() if response.status_code == 200 else None
 
-# NUEVO: Cambiamos la firma de la función para que también devuelva el 'latitud_centro' y 'longitud_centro'
 def obtener_restaurantes_por_ciudad(
     city: str,
     dia_semana: Optional[str] = None,
@@ -94,13 +94,11 @@ def obtener_restaurantes_por_ciudad(
     diet: Optional[str] = None,
     dish: Optional[str] = None,
     zona: Optional[str] = None,
-    coordenadas: Optional[str] = None,  # Ojo: aquí se espera un string "lat,lng"
+    coordenadas: Optional[str] = None, 
     radio_km: float = 1.0,
     sort_by_proximity: bool = True
 ) -> Tuple[list, Optional[str], Optional[float], Optional[float]]:
-    """
-    Devuelve una tupla (restaurantes_encontrados, filter_formula, lat_centro_busqueda, lon_centro_busqueda)
-    """
+    
     try:
         table_name = 'Restaurantes DB'
         url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}"
@@ -108,9 +106,9 @@ def obtener_restaurantes_por_ciudad(
             "Authorization": f"Bearer {AIRTABLE_PAT}",
         }
 
-        # Para devolver la lat/lon central que se usó en la búsqueda
-        lat_centro_busqueda = None   # NUEVO
-        lon_centro_busqueda = None   # NUEVO
+        # Latitud y longitud del punto central de búsqueda (tiene que estar en el output para el fit de cercanía)
+        lat_centro_busqueda = None  
+        lon_centro_busqueda = None  
 
         # 1) Construimos los filtros base (price_range, cocina, diet, dish)
         base_filters = []
@@ -119,12 +117,12 @@ def obtener_restaurantes_por_ciudad(
         if price_range:
             ranges = price_range.split(',')
             if len(ranges) == 1:
-                # Caso de un solo rango, p.e. '$$'
+                # Caso de un solo rango
                 base_filters.append(
                     f"FIND('{price_range.strip()}', ARRAYJOIN({{price_range}}, ', ')) > 0"
                 )
             else:
-                # Caso de varios rangos, p.e. '$, $$'
+                # Caso de varios rangos
                 conditions = [
                     f"FIND('{r.strip()}', ARRAYJOIN({{price_range}}, ', ')) > 0"
                     for r in ranges
@@ -164,7 +162,7 @@ def obtener_restaurantes_por_ciudad(
                 base_filters.append(f"OR({', '.join(conditions)})")
 
         restaurantes_encontrados = []
-        final_filter_formula = None  # para retornarla después si quieres verla
+        final_filter_formula = None  
 
         # 2) Si hay ZONA
         if zona:
@@ -174,15 +172,13 @@ def obtener_restaurantes_por_ciudad(
                 [zona]
             )
 
-            # Tomaremos las coordenadas del último item de la lista de zonas
-            # para informar de dónde empezamos a buscar
             for index, zona_item in enumerate(zonas_list):
                 location_zona = obtener_coordenadas_zona(zona_item, city, radio_km)
                 if not location_zona:
                     logging.error(f"Zona '{zona_item}' no encontrada.")
                     continue
 
-                # NUEVO: Guardamos la lat/long de la última zona procesada
+                
                 lat_centro_busqueda = location_zona['location']['lat']
                 lon_centro_busqueda = location_zona['location']['lng']
 
@@ -192,14 +188,14 @@ def obtener_restaurantes_por_ciudad(
                 lon_min = bounding_box['lon_min']
                 lon_max = bounding_box['lon_max']
 
-                # Creamos una copia de los filtros base y le añadimos la parte geográfica
+                
                 zone_filters = base_filters.copy()
                 zone_filters.append(f"{{location/lat}} >= {lat_min}")
                 zone_filters.append(f"{{location/lat}} <= {lat_max}")
                 zone_filters.append(f"{{location/lng}} >= {lon_min}")
                 zone_filters.append(f"{{location/lng}} <= {lon_max}")
 
-                # Hacemos un AND global de todas las partes
+                
                 final_filter_formula = f"AND({', '.join(zone_filters)})"
                 logging.info(
                     f"Fórmula de filtro construida para zona '{zona_item}': {final_filter_formula}"
@@ -214,14 +210,14 @@ def obtener_restaurantes_por_ciudad(
 
                 response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
                 if response_data and 'records' in response_data:
-                    # Evitamos duplicados
+                    
                     nuevos_restaurantes = [
                         r for r in response_data['records']
                         if r not in restaurantes_encontrados
                     ]
                     restaurantes_encontrados.extend(nuevos_restaurantes)
 
-            # Ajustamos la cantidad máxima de restaurantes
+            # CANTIDAD MÁXIMA DE RESTAURANTES QUE SE DEVUELVEN (AJUSTAR A VOLUNTAD)
             max_total_restaurantes = len(zonas_list) * 80
             restaurantes_encontrados = restaurantes_encontrados[:max_total_restaurantes]
 
@@ -242,13 +238,13 @@ def obtener_restaurantes_por_ciudad(
                 )
 
             lat_centro, lon_centro = coords
-            # NUEVO: Asignamos a las variables para retornarlas
+            
             lat_centro_busqueda = lat_centro
             lon_centro_busqueda = lon_centro
 
             logging.info(f"Coordenadas procesadas: lat={lat_centro}, lon={lon_centro}")
 
-            # Mientras no tengamos 80 resultados, agrandamos el radio
+            # Agrandamos el radio de búsqueda hasta que tengamos 80 restaurantes (esto se puede cambiar según los que queramos)
             while len(restaurantes_encontrados) < 80:
                 bounding_box = calcular_bounding_box(lat_centro, lon_centro, radio_km)
                 lat_min = bounding_box['lat_min']
@@ -256,7 +252,7 @@ def obtener_restaurantes_por_ciudad(
                 lon_min = bounding_box['lon_min']
                 lon_max = bounding_box['lon_max']
 
-                # Copiamos los filtros base y añadimos la parte geográfica
+                
                 geo_filters = base_filters.copy()
                 geo_filters.extend([
                     f"{{location/lat}} >= {lat_min}",
@@ -288,13 +284,12 @@ def obtener_restaurantes_por_ciudad(
                 if len(restaurantes_encontrados) >= 80:
                     break
 
-                # Incrementamos el radio para volver a intentar
                 radio_km += 1
-                # Ajusta si quieres hasta 20 km
+                # Buscamos en un radio de HASTA 20 km. Esto se puede ajustar también.
                 if radio_km > 20:
                     break
 
-            # 4) Orden opcional por proximidad
+            # 4) Ordenar por proximidad
             if sort_by_proximity and restaurantes_encontrados:
                 restaurantes_encontrados.sort(
                     key=lambda r: haversine(
@@ -308,7 +303,7 @@ def obtener_restaurantes_por_ciudad(
             # Tomamos los primeros 80
             restaurantes_encontrados = restaurantes_encontrados[:80]
 
-        # NUEVO: Retornamos también las coordenadas de búsqueda
+        
         return (
             restaurantes_encontrados,
             final_filter_formula,
@@ -352,7 +347,7 @@ async def procesar_variables(request: Request):
                     detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD)."
                 )
 
-        # NUEVO: Desempaquetamos las coordenadas centrales que nos devuelva la función
+        
         restaurantes, filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
@@ -364,14 +359,14 @@ async def procesar_variables(request: Request):
             coordenadas=coordenadas
         )
 
-        # Capturar la URL completa y los parámetros de la solicitud
+        
         full_url = str(request.url)
         request_method = request.method
 
-        # Capturar la información del request
+        
         http_request_info = f'{request_method} {full_url} HTTP/1.1 200 OK'
         
-        # Si no se encontraron restaurantes, devolver el mensaje y el request_info
+        # Si no se encontraron restaurantes:
         if not restaurantes:
             return {
                 "request_info": http_request_info,
@@ -387,19 +382,18 @@ async def procesar_variables(request: Request):
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados."
             }
         
-        # NUEVO: Incluir lat/lng de cada restaurante en el resultado
+        
         resultados = []
         for restaurante in restaurantes:
             fields = restaurante.get('fields', {})
             resultados.append({
                 "bh_message": fields.get('bh_message', 'Sin descripción'),
                 "url": fields.get('url', 'No especificado'),
-                "lat_restaurante": fields.get('location/lat', None),  # NUEVO
-                "lon_restaurante": fields.get('location/lng', None)   # NUEVO
+                "lat_restaurante": fields.get('location/lat', None), 
+                "lon_restaurante": fields.get('location/lng', None)   
             })
         
-        # Devolver los resultados junto con el log de la petición HTTP
-        # NUEVO: Añadir 'search_center_lat' y 'search_center_lng' al output
+    
         return {
             "request_info": http_request_info,
             "variables": {
@@ -411,8 +405,8 @@ async def procesar_variables(request: Request):
                 "alimentary_restrictions": diet,
                 "specific_dishes": dish
             },
-            "search_center_lat": lat_centro_busqueda,  # NUEVO
-            "search_center_lng": lon_centro_busqueda,  # NUEVO
+            "search_center_lat": lat_centro_busqueda,  
+            "search_center_lng": lon_centro_busqueda,  
             "resultados": resultados
         }
     
