@@ -28,16 +28,16 @@ async def get_restaurantes(
     zona: Optional[str] = Query(None, description="Zona específica dentro de la ciudad")
 ):
     try:
-        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
-            city=city,
-            price_range=price_range,
-            cocina=cocina,
-            diet=diet,
-            dish=dish,
-            zona=zona,
-            coordenadas=coordenadas,
-            sort_by_proximity=True
-        )
+        restaurantes, filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
+    city=city,
+    price_range=price_range,
+    cocina=cocina,
+    diet=diet,
+    dish=dish,
+    zona=zona,
+    coordenadas=coordenadas,
+    sort_by_proximity=True
+)
         
         # Capturar la URL completa y los parámetros de la solicitud
         full_url = str(request.url)
