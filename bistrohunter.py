@@ -390,7 +390,8 @@ async def procesar_variables(request: Request):
                 "bh_message": fields.get('bh_message', 'Sin descripción'),
                 "url": fields.get('url', 'No especificado'),
                 "lat_restaurante": fields.get('location/lat', None), 
-                "lon_restaurante": fields.get('location/lng', None)   
+                "lon_restaurante": fields.get('location/lng', None),
+                "categories_string": fields.get('categories_string', None)
             })
         
     
