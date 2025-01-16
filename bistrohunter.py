@@ -1,20 +1,19 @@
 # IMPORTS
 import os
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from fastapi import FastAPI, Query, HTTPException, Request
 from datetime import datetime
 import requests
 import logging
-from functools import wraps
 from math import radians, cos, sin, asin, sqrt
 
 # Desplegar fast api (no tocar)
 app = FastAPI()
 
-# Configuración del logging (nos va a decir dónde están los fallos)
+# Configuración del logging
 logging.basicConfig(level=logging.INFO)
 
-# Secretos. Esto son urls, claves, tokens y demás que no deben mostrarse públicamente ni subirse a ningún sitio
+# Secretos
 BASE_ID = os.getenv('BASE_ID')
 AIRTABLE_PAT = os.getenv('AIRTABLE_PAT')
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
@@ -29,7 +28,6 @@ def haversine(lon1, lat1, lon2, lat2):
     c = 2 * asin(sqrt(a))
     km = 6367 * c
     return km
-
 
 def calcular_bounding_box(lat, lon, radio_km=1):
     # Aproximación: 1 grado de latitud ~ 111.32 km
@@ -87,6 +85,7 @@ def airtable_request(url, headers, params, view_id: Optional[str] = None):
     response = requests.get(url, headers=headers, params=params)
     return response.json() if response.status_code == 200 else None
 
+# NUEVO: Cambiamos la firma de la función para que también devuelva el 'latitud_centro' y 'longitud_centro'
 def obtener_restaurantes_por_ciudad(
     city: str,
     dia_semana: Optional[str] = None,
@@ -95,16 +94,23 @@ def obtener_restaurantes_por_ciudad(
     diet: Optional[str] = None,
     dish: Optional[str] = None,
     zona: Optional[str] = None,
-    coordenadas: Optional[list] = None,
+    coordenadas: Optional[str] = None,  # Ojo: aquí se espera un string "lat,lng"
     radio_km: float = 1.0,
     sort_by_proximity: bool = True
-) -> (list[dict], Optional[str]):
+) -> Tuple[list, Optional[str], Optional[float], Optional[float]]:
+    """
+    Devuelve una tupla (restaurantes_encontrados, filter_formula, lat_centro_busqueda, lon_centro_busqueda)
+    """
     try:
         table_name = 'Restaurantes DB'
         url = f"https://api.airtable.com/v0/{BASE_ID}/{table_name}"
         headers = {
             "Authorization": f"Bearer {AIRTABLE_PAT}",
         }
+
+        # Para devolver la lat/lon central que se usó en la búsqueda
+        lat_centro_busqueda = None   # NUEVO
+        lon_centro_busqueda = None   # NUEVO
 
         # 1) Construimos los filtros base (price_range, cocina, diet, dish)
         base_filters = []
@@ -168,13 +174,18 @@ def obtener_restaurantes_por_ciudad(
                 [zona]
             )
 
-            for zona_item in zonas_list:
+            # Tomaremos las coordenadas del último item de la lista de zonas
+            # para informar de dónde empezamos a buscar
+            for index, zona_item in enumerate(zonas_list):
                 location_zona = obtener_coordenadas_zona(zona_item, city, radio_km)
                 if not location_zona:
                     logging.error(f"Zona '{zona_item}' no encontrada.")
                     continue
 
-                location = location_zona['location']
+                # NUEVO: Guardamos la lat/long de la última zona procesada
+                lat_centro_busqueda = location_zona['location']['lat']
+                lon_centro_busqueda = location_zona['location']['lng']
+
                 bounding_box = location_zona['bounding_box']
                 lat_min = bounding_box['lat_min']
                 lat_max = bounding_box['lat_max']
@@ -231,9 +242,13 @@ def obtener_restaurantes_por_ciudad(
                 )
 
             lat_centro, lon_centro = coords
+            # NUEVO: Asignamos a las variables para retornarlas
+            lat_centro_busqueda = lat_centro
+            lon_centro_busqueda = lon_centro
+
             logging.info(f"Coordenadas procesadas: lat={lat_centro}, lon={lon_centro}")
 
-            # Mientras no tengamos al menos 10 resultados, agrandamos el radio
+            # Mientras no tengamos 80 resultados, agrandamos el radio
             while len(restaurantes_encontrados) < 80:
                 bounding_box = calcular_bounding_box(lat_centro, lon_centro, radio_km)
                 lat_min = bounding_box['lat_min']
@@ -275,7 +290,8 @@ def obtener_restaurantes_por_ciudad(
 
                 # Incrementamos el radio para volver a intentar
                 radio_km += 1
-                if radio_km > 20:  # límite de 2 km
+                # Ajusta si quieres hasta 20 km
+                if radio_km > 20:
                     break
 
             # 4) Orden opcional por proximidad
@@ -289,10 +305,16 @@ def obtener_restaurantes_por_ciudad(
                     )
                 )
 
-            # Tomamos los primeros 10
+            # Tomamos los primeros 80
             restaurantes_encontrados = restaurantes_encontrados[:80]
 
-        return restaurantes_encontrados, final_filter_formula
+        # NUEVO: Retornamos también las coordenadas de búsqueda
+        return (
+            restaurantes_encontrados,
+            final_filter_formula,
+            lat_centro_busqueda,
+            lon_centro_busqueda
+        )
 
     except Exception as e:
         logging.error(f"Error al obtener restaurantes de la ciudad: {e}")
@@ -302,8 +324,6 @@ def obtener_restaurantes_por_ciudad(
         )
 
 @app.post("/procesar-variables")
-
-#Esta es la función que convierte los datos que ha extraído el agente de IA en las variables que usa la función obtener_restaurantes y luego llama a esta misma función y extrae y ofrece los resultados
 async def procesar_variables(request: Request):
     try:
         data = await request.json()
@@ -327,10 +347,13 @@ async def procesar_variables(request: Request):
                 fecha = datetime.strptime(date, "%Y-%m-%d")
                 dia_semana = obtener_dia_semana(fecha)
             except ValueError:
-                raise HTTPException(status_code=400, detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD).")
+                raise HTTPException(
+                    status_code=400, 
+                    detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD)."
+                )
 
-        # Llama a la función obtener_restaurantes_por_ciudad y construye la filter_formula
-        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
+        # NUEVO: Desempaquetamos las coordenadas centrales que nos devuelva la función
+        restaurantes, filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
             price_range=price_range,
@@ -364,16 +387,19 @@ async def procesar_variables(request: Request):
                 "mensaje": "No se encontraron restaurantes con los filtros aplicados."
             }
         
-        # Procesar los restaurantes
-        resultados = [
-            {
-                "bh_message": restaurante['fields'].get('bh_message', 'Sin descripción'),
-                "url": restaurante['fields'].get('url', 'No especificado')
-            }
-            for restaurante in restaurantes
-        ]
+        # NUEVO: Incluir lat/lng de cada restaurante en el resultado
+        resultados = []
+        for restaurante in restaurantes:
+            fields = restaurante.get('fields', {})
+            resultados.append({
+                "bh_message": fields.get('bh_message', 'Sin descripción'),
+                "url": fields.get('url', 'No especificado'),
+                "lat_restaurante": fields.get('location/lat', None),  # NUEVO
+                "lon_restaurante": fields.get('location/lng', None)   # NUEVO
+            })
         
         # Devolver los resultados junto con el log de la petición HTTP
+        # NUEVO: Añadir 'search_center_lat' y 'search_center_lng' al output
         return {
             "request_info": http_request_info,
             "variables": {
@@ -385,6 +411,8 @@ async def procesar_variables(request: Request):
                 "alimentary_restrictions": diet,
                 "specific_dishes": dish
             },
+            "search_center_lat": lat_centro_busqueda,  # NUEVO
+            "search_center_lng": lon_centro_busqueda,  # NUEVO
             "resultados": resultados
         }
     
