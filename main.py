@@ -130,7 +130,9 @@ async def procesar_variables(request: Request):
                 "restaurants": [
                     {
                         "bh_message": r['fields'].get('bh_message', 'Sin descripción'),
-                        "url": r['fields'].get('url', 'No especificado')
+                        "url": r['fields'].get('url', 'No especificado'),
+                        "lat_restaurante": r['fields'].get('location/lat', 'No especificado'),
+                        "lon_restaurante": r['fields'].get('location/lng', 'No especificado')
                     }
                     for r in restaurantes
                 ],
@@ -140,7 +142,8 @@ async def procesar_variables(request: Request):
                     "cuisine_type": cocina,
                     "diet": diet,
                     "dish": dish,
-                    "zone": zona
+                    "zone": zona,
+                    "coordenadas": coordenadas
                 },
                 "api_call": api_call
             }
@@ -153,7 +156,8 @@ async def procesar_variables(request: Request):
                     "cuisine_type": cocina,
                     "diet": diet,
                     "dish": dish,
-                    "zone": zona
+                    "zone": zona,
+                    "coordenadas": coordenadas
                 },
                 "api_call": api_call
             }
