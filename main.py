@@ -136,7 +136,7 @@ async def procesar_variables(request: Request):
                         "url": r['fields'].get('url', 'No especificado'),
                         "lat_restaurante": r['fields'].get('location/lat', 'No especificado'),
                         "lon_restaurante": r['fields'].get('location/lng', 'No especificado'),
-                        "categories_string": fields.get('categories_string', 'No especificado')
+                        "categories_string": r['fields'].get('categories_string', 'No especificado')
                     }
                     for r in restaurantes
                 ],
