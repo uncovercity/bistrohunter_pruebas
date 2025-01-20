@@ -71,7 +71,9 @@ async def get_restaurantes(
                 "description": r["fields"].get("bh_message", "Sin descripción"),
                 "price_range": r["fields"].get("price_range", "No especificado"),
                 "score": r["fields"].get("NBH2", "N/A"),
-                "url": r["fields"].get("url", "No especificado")
+                "url": r["fields"].get("url", "No especificado"),
+                "lat_restaurante": r["fields"].get("location/lat"),
+                "lon_restaurante": r["fields"].get("location/lng")
             }
             for r in restaurantes
         ]
