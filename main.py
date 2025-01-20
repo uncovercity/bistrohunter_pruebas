@@ -89,6 +89,8 @@ async def get_restaurantes(
                 "zone": zona,
                 "coordenadas": coordenadas
             },
+            "search_center_lat": lat_centro_busqueda,  
+            "search_center_lng": lon_centro_busqueda, 
             "api_call": api_call,
             "filter_formula": filter_formula
         }
@@ -151,6 +153,8 @@ async def procesar_variables(request: Request):
                     "zone": zona,
                     "coordenadas": coordenadas
                 },
+                "search_center_lat": lat_centro_busqueda,  
+                "search_center_lng": lon_centro_busqueda, 
                 "api_call": api_call
             }
         else:
