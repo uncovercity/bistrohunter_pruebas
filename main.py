@@ -73,7 +73,8 @@ async def get_restaurantes(
                 "score": r["fields"].get("NBH2", "N/A"),
                 "url": r["fields"].get("url", "No especificado"),
                 "lat_restaurante": r["fields"].get("location/lat"),
-                "lon_restaurante": r["fields"].get("location/lng")
+                "lon_restaurante": r["fields"].get("location/lng"),
+                "categories_string": r["fields"].get("categories_string")
             }
             for r in restaurantes
         ]
