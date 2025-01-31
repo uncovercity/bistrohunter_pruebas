@@ -13,13 +13,13 @@ app = FastAPI()
 # Configuración del logging
 logging.basicConfig(level=logging.INFO)
 
-# Secretos
+# Secretos para render
 BASE_ID = os.getenv('BASE_ID')
 AIRTABLE_PAT = os.getenv('AIRTABLE_PAT')
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
 N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL')
 
-# Calcula la distancia haversiana entre dos puntos (filtro de zona)
+# Calcula la distancia haversiana entre dos puntos (lo uso para el filtro de zona)
 def haversine(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
     dlon = lon2 - lon1
@@ -29,7 +29,7 @@ def haversine(lon1, lat1, lon2, lat2):
     km = 6367 * c
     return km
     
-# Calculamos la bounding_box dependiendo del punto central de búsqueda (coordenadas del centro de la ciudad o de la zona que pida el cliente)
+# Calculamos la bounding_box dependiendo del punto central de búsqueda (coordenadas del centro de la ciudad o del "centro" de la zona que pide el cliente)
 def calcular_bounding_box(lat, lon, radio_km=1):
     # Aproximación: 1 grado de latitud ~ 111.32 km
     km_por_grado_lat = 111.32
@@ -80,12 +80,14 @@ def obtener_coordenadas_zona(zona: str, ciudad: str, radio_km: float) -> Optiona
         logging.error(f"Error al obtener coordenadas de la zona: {e}")
         return None
 
+# Petición a Airtable en la vista de BistroHunter
 def airtable_request(url, headers, params, view_id: Optional[str] = None):
     if view_id:
         params["view"] = view_id
     response = requests.get(url, headers=headers, params=params)
     return response.json() if response.status_code == 200 else None
 
+# Buscamos los restaurantes que tenemos en ddbb en función de las variables que nos pidió el cliente
 def obtener_restaurantes_por_ciudad(
     city: str,
     dia_semana: Optional[str] = None,
@@ -164,7 +166,7 @@ def obtener_restaurantes_por_ciudad(
         restaurantes_encontrados = []
         final_filter_formula = None  
 
-        # 2) Si hay ZONA
+        # 2) SI hay ZONA
         if zona:
             zonas_list = (
                 [z.strip() for z in zona.split(',')]
@@ -221,7 +223,7 @@ def obtener_restaurantes_por_ciudad(
             max_total_restaurantes = len(zonas_list) * 80
             restaurantes_encontrados = restaurantes_encontrados[:max_total_restaurantes]
 
-        # 3) Si NO hay ZONA, utilizamos coordenadas (y un radio incremental)
+        # 3) SI NO hay ZONA, utilizamos coordenadas (y un radio incremental)
         else:
             if not coordenadas:
                 raise HTTPException(
@@ -285,7 +287,7 @@ def obtener_restaurantes_por_ciudad(
                     break
 
                 radio_km += 1
-                # Buscamos en un radio de HASTA 20 km. Esto se puede ajustar también.
+                # Buscamos en un radio de HASTA 20 km. Esto se puede ajustar también (hablar con JaviB).
                 if radio_km > 20:
                     break
 
@@ -317,7 +319,7 @@ def obtener_restaurantes_por_ciudad(
             status_code=500,
             detail="Error al obtener restaurantes de la ciudad"
         )
-
+#Procesa las variables que nos ha dado el cliente (creo que actualmente no se usa, se usaba cuando había que transformar la fecha?)
 @app.post("/procesar-variables")
 async def procesar_variables(request: Request):
     try:
@@ -346,7 +348,6 @@ async def procesar_variables(request: Request):
                     status_code=400, 
                     detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD)."
                 )
-
         
         restaurantes, filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
             city=city,
