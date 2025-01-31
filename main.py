@@ -17,7 +17,7 @@ app = FastAPI()
 async def root():
     return {"message": "Bienvenido a la API de búsqueda de restaurantes"}
 
-#NUESTRO ENDPOINT
+#NUESTRO ENDPOINT (este es el de pruebas)
 @app.get("/api/getRestaurantsPrueba")
 async def get_restaurantes(
     request: Request,
@@ -100,7 +100,7 @@ async def get_restaurantes(
         logging.error(f"Error al buscar restaurantes en /api/getRestaurantsPrueba: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
-# PROCESAMOS VARIABLES DEL CLIENTE
+# PROCESAMOS VARIABLES DEL CLIENTE (Creo que esta actualmente no se usa, no estoy segura)
 @app.post("/procesar-variables")
 async def procesar_variables(request: Request):
     try:
