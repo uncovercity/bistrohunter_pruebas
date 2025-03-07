@@ -30,7 +30,7 @@ async def get_restaurantes(
     zona: Optional[str] = Query(None, description="Zona específica dentro de la ciudad")
 ):
     try:
-        restaurantes, filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
+        restaurantes, final_filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
     city=city,
     price_range=price_range,
     cocina=cocina,
@@ -60,7 +60,7 @@ async def get_restaurantes(
                     "coordenadas": coordenadas
                 },
                 "api_call": api_call,
-                "filter_formula": filter_formula  # opcional, para debug
+                "final_filter_formula": final_filter_formula  # opcional, para debug
             }
 
         # Hay restaurantes
@@ -93,7 +93,7 @@ async def get_restaurantes(
             "search_center_lat": lat_centro_busqueda,  
             "search_center_lng": lon_centro_busqueda, 
             "api_call": api_call,
-            "filter_formula": filter_formula
+            "final_filter_formula": final_filter_formula
         }
 
     except Exception as e:
@@ -118,7 +118,7 @@ async def procesar_variables(request: Request):
 
         # Llamar a la función para obtener los restaurantes y la fórmula de filtro
         logging.info(f"Coordenadas recibidas: {coordenadas}")
-        restaurantes, filter_formula = obtener_restaurantes_por_ciudad(
+        restaurantes, final_filter_formula = obtener_restaurantes_por_ciudad(
             city=city,
             price_range=price_range,
             cocina=cocina,
