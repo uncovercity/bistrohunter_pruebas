@@ -350,7 +350,7 @@ async def procesar_variables(request: Request):
                     detail="La fecha proporcionada no tiene el formato correcto (YYYY-MM-DD)."
                 )
         
-        restaurantes, filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
+        restaurantes, final_filter_formula, lat_centro_busqueda, lon_centro_busqueda = obtener_restaurantes_por_ciudad(
             city=city,
             dia_semana=dia_semana,
             price_range=price_range,
