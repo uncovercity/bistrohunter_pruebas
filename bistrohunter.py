@@ -198,7 +198,7 @@ def obtener_restaurantes_por_ciudad(
                 zone_filters.append(f"{{location/lng}} <= {lon_max}")
 
                 
-                final_filter_formula = f"AND({', '.join(zone_filters)}, {{description}} != '', {{discard_reason}} != 'Cerrado permanentemente', {{type}} = 'Restaurante', {{price_range_string}} != 'No disponible')"
+                final_filter_formula = f"AND({', '.join(zone_filters)})"
 
                 logging.info(
                     f"Fórmula de filtro construida para zona '{zona_item}': {final_filter_formula}"
@@ -276,7 +276,7 @@ def obtener_restaurantes_por_ciudad(
                     "maxRecords": 80
                 }
 
-                response_data = airtable_request(url, headers, params)
+                response_data = airtable_request(url, headers, params, view_id="viw6z7g5ZZs3mpy3S")
                 if response_data and 'records' in response_data:
                     nuevos_restaurantes = [
                         r for r in response_data['records']
